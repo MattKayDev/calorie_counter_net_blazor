@@ -2,14 +2,24 @@
 @inject IUserProfileRepository ProfileRepo
 @inject IMealSlotRepository SlotRepo
 @inject IFoodLogRepository LogRepo
+@inject IWaterLogRepository WaterRepo
+@inject DiaryService Diary
+@inject IThemeService ThemeService
 
 <div class="ct-topbar">
     <div class="ct-topbar-row">
         <div class="ct-brand">🍏 Calorie Diary</div>
-        <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
-                @onclick="() => _calendarOpen = true">
-            📅 History
-        </button>
+        <div style="display:flex; gap:6px; align-items:center;">
+            <button class="ct-datebtn" style="padding:6px 10px; font-size:0.85rem; background:rgba(255,255,255,0.18);"
+                    title="Toggle Light / Dark Mode"
+                    @onclick="ToggleThemeAsync">
+                @(_profile.ThemeMode == ThemeMode.Dark ? "☀️" : "🌙")
+            </button>
+            <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
+                    @onclick="() => _calendarOpen = true">
+                📅 History
+            </button>
+        </div>
     </div>
 
     <div class="ct-datebar">
@@ -22,6 +32,11 @@
 </div>
 
 <div class="ct-page">
+    @if (!string.IsNullOrWhiteSpace(_toast))
+    {
+        <div class="ct-alert ct-alert-success">@_toast</div>
+    }
+
     @if (_loading)
     {
         <div class="ct-card" style="text-align:center; padding:32px;">
@@ -53,9 +68,12 @@
                 @RenderMacroPill("Sugars", _totals.SugarsG, _profile.SugarGoalG, "#ec4899")
             </div>
 
-            <div style="text-align:center; margin-top:10px;">
+            <div style="display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
                 <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
-                    @(_showAllNutrients ? "Hide full nutrients ▲" : "All nutrients (Sat Fat, Salt, Fibre) ▼")
+                    @(_showAllNutrients ? "Hide nutrients ▲" : "All nutrients ▼")
+                </button>
+                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="CopyYesterdayAsync">
+                    📋 Copy Yesterday
                 </button>
             </div>
 
@@ -68,6 +86,31 @@
                     @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
                 </div>
             }
+        </div>
+
+        <!-- Daily Water Tracker Card -->
+        <div class="ct-card" style="padding:13px 16px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
+                <div>
+                    <strong style="font-size:0.94rem;">💧 Water</strong>
+                    <span class="ct-muted" style="margin-left:6px;">
+                        @_waterLog.AmountMl ml / @_profile.DailyWaterGoalMl ml (@((_waterLog.AmountMl / 250.0).ToString("0.#")) glasses)
+                    </span>
+                </div>
+                <div style="display:flex; gap:4px;">
+                    <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => AdjustWaterAsync(-250)">-250</button>
+                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => AdjustWaterAsync(250)">+250ml</button>
+                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => AdjustWaterAsync(500)">+500</button>
+                </div>
+            </div>
+            @{
+                var waterPct = _profile.DailyWaterGoalMl > 0
+                    ? Math.Clamp((double)_waterLog.AmountMl / _profile.DailyWaterGoalMl * 100.0, 0, 100)
+                    : 0;
+            }
+            <div class="ct-bar-track" style="height:8px;">
+                <div class="ct-bar-fill" style="width:@waterPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:#0ea5e9;"></div>
+            </div>
         </div>
 
         <!-- Meal Slot Cards -->
@@ -98,7 +141,7 @@
                         @foreach (var entry in slotEntries)
                         {
                             <div class="ct-entry-row">
-                                <div>
+                                <div style="cursor:pointer; flex:1;" @onclick="() => OpenEditEntryModal(entry)">
                                     <div class="ct-entry-name">@entry.NameSnapshot</div>
                                     <div class="ct-entry-meta">
                                         @entry.ServingLabel • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
@@ -106,6 +149,7 @@
                                 </div>
                                 <div class="ct-entry-right">
                                     <span class="ct-entry-kcal">@entry.CaloriesKcal.ToString("0") kcal</span>
+                                    <button class="ct-icon-btn" title="Edit quantity" @onclick="() => OpenEditEntryModal(entry)">✏️</button>
                                     <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)">🗑️</button>
                                 </div>
                             </div>
@@ -116,6 +160,65 @@
         }
     }
 </div>
+
+<!-- Edit Logged Entry Modal -->
+@if (_editingEntry is not null)
+{
+    <div class="ct-modal-backdrop" @onclick="() => _editingEntry = null">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>Edit Logged Item</strong>
+                <button class="ct-icon-btn" @onclick="() => _editingEntry = null">✕</button>
+            </div>
+            <div class="ct-modal-body">
+                <div style="font-weight:700; font-size:1rem; margin-bottom:10px;">@_editingEntry.NameSnapshot</div>
+
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Quantity (grams)</label>
+                        <input class="ct-input" type="number" step="1" min="1" @bind="_editGrams" @bind:event="oninput" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Meal Slot</label>
+                        <select class="ct-select" @bind="_editSlotId">
+                            @foreach (var s in _slots)
+                            {
+                                <option value="@s.Id">@s.Icon @s.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @{
+                    var ratio = _editingEntry.QuantityGrams > 0 ? _editGrams / _editingEntry.QuantityGrams : 1.0;
+                    var preview = _editingEntry.Nutrients.Scale(Math.Max(0, ratio));
+                }
+                <div class="ct-macro-row" style="margin-top:8px; margin-bottom:14px;">
+                    <div class="ct-macro-pill">
+                        <div class="ct-macro-name">Calories</div>
+                        <div class="ct-macro-val" style="color:var(--ct-green-dark)">@preview.CaloriesKcal.ToString("0") kcal</div>
+                    </div>
+                    <div class="ct-macro-pill">
+                        <div class="ct-macro-name">Protein</div>
+                        <div class="ct-macro-val">@preview.ProteinG.ToString("0.0")g</div>
+                    </div>
+                    <div class="ct-macro-pill">
+                        <div class="ct-macro-name">Carbs</div>
+                        <div class="ct-macro-val">@preview.CarbsG.ToString("0.0")g</div>
+                    </div>
+                    <div class="ct-macro-pill">
+                        <div class="ct-macro-name">Fat</div>
+                        <div class="ct-macro-val">@preview.FatG.ToString("0.0")g</div>
+                    </div>
+                </div>
+
+                <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveEditedEntryAsync">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 <AddFoodModal IsOpen="_addModalOpen"
               Date="_selectedDate"
@@ -135,6 +238,7 @@
     private UserProfile _profile = new();
     private List<MealSlot> _slots = new();
     private List<FoodLogEntry> _entries = new();
+    private WaterLog _waterLog = new();
     private NutrientProfile _totals = NutrientProfile.Zero;
     private bool _loading = true;
     private bool _showAllNutrients;
@@ -142,6 +246,11 @@
     private bool _addModalOpen;
     private Guid _activeSlotId;
     private string _activeSlotName = string.Empty;
+    private string? _toast;
+
+    private FoodLogEntry? _editingEntry;
+    private double _editGrams;
+    private Guid _editSlotId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -154,30 +263,74 @@
         _profile = await ProfileRepo.GetOrCreateAsync();
         _slots = await SlotRepo.GetAllAsync();
         _entries = await LogRepo.GetByDateAsync(_selectedDate);
+        _waterLog = await WaterRepo.GetByDateAsync(_selectedDate);
         _totals = DiaryService.SumNutrients(_entries);
         _loading = false;
     }
 
+    private async Task ToggleThemeAsync()
+    {
+        _profile.ThemeMode = _profile.ThemeMode == ThemeMode.Dark ? ThemeMode.Light : ThemeMode.Dark;
+        await ProfileRepo.SaveAsync(_profile);
+        await ThemeService.ApplyThemeAsync(_profile.ThemeMode);
+    }
+
+    private async Task AdjustWaterAsync(int deltaMl)
+    {
+        _waterLog.Date = _selectedDate;
+        _waterLog.AmountMl = Math.Max(0, _waterLog.AmountMl + deltaMl);
+        await WaterRepo.SaveAsync(_waterLog);
+    }
+
+    private async Task CopyYesterdayAsync()
+    {
+        var count = await Diary.CopyEntriesFromDateAsync(_selectedDate.AddDays(-1), _selectedDate);
+        _toast = count > 0
+            ? $"Copied {count} item(s) from {_selectedDate.AddDays(-1):dd MMM}."
+            : $"Nothing was logged on {_selectedDate.AddDays(-1):dd MMM} to copy.";
+        await LoadDayAsync();
+    }
+
+    private void OpenEditEntryModal(FoodLogEntry entry)
+    {
+        _editingEntry = entry;
+        _editGrams = entry.QuantityGrams > 0 ? entry.QuantityGrams : 100;
+        _editSlotId = entry.MealSlotId;
+    }
+
+    private async Task SaveEditedEntryAsync()
+    {
+        if (_editingEntry is null || _editGrams <= 0) return;
+        await Diary.UpdateEntryQuantityAsync(_editingEntry, _editGrams, _editSlotId);
+        _editingEntry = null;
+        _toast = "Updated logged item.";
+        await LoadDayAsync();
+    }
+
     private async Task PrevDay()
     {
+        _toast = null;
         _selectedDate = _selectedDate.AddDays(-1);
         await LoadDayAsync();
     }
 
     private async Task NextDay()
     {
+        _toast = null;
         _selectedDate = _selectedDate.AddDays(1);
         await LoadDayAsync();
     }
 
     private async Task OnDatePickedAsync(DateOnly date)
     {
+        _toast = null;
         _selectedDate = date;
         await LoadDayAsync();
     }
 
     private void OpenAddModal(MealSlot slot)
     {
+        _toast = null;
         _activeSlotId = slot.Id;
         _activeSlotName = slot.Name;
         _addModalOpen = true;

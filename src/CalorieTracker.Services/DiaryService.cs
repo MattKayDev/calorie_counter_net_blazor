@@ -15,6 +15,11 @@ public interface IFileDownloadService
     Task DownloadBytesAsync(string fileName, string contentType, byte[] bytes);
 }
 
+public interface IThemeService
+{
+    Task ApplyThemeAsync(CalorieTracker.Domain.Enums.ThemeMode theme);
+}
+
 public sealed class DiaryService
 {
     private readonly IFoodLogRepository _logRepo;
@@ -135,5 +140,73 @@ public sealed class DiaryService
 
         await _bodyRepo.SaveAsync(measurement, ct);
         return measurement;
+    }
+
+    public async Task<FoodLogEntry> UpdateEntryQuantityAsync(
+        FoodLogEntry entry,
+        double newGrams,
+        Guid newMealSlotId,
+        CancellationToken ct = default)
+    {
+        if (newGrams <= 0) return entry;
+
+        var ratio = entry.QuantityGrams > 0 ? newGrams / entry.QuantityGrams : 1.0;
+        var scaled = entry.Nutrients.Scale(ratio);
+
+        entry.MealSlotId = newMealSlotId;
+        entry.QuantityGrams = Math.Round(newGrams, 1);
+        entry.Servings = Math.Round(entry.Servings * ratio, 2);
+        entry.ServingLabel = $"{entry.QuantityGrams:0.#}g";
+        entry.CaloriesKcal = scaled.CaloriesKcal;
+        entry.FatG = scaled.FatG;
+        entry.SaturatedFatG = scaled.SaturatedFatG;
+        entry.CarbsG = scaled.CarbsG;
+        entry.SugarsG = scaled.SugarsG;
+        entry.FibreG = scaled.FibreG;
+        entry.ProteinG = scaled.ProteinG;
+        entry.SaltG = scaled.SaltG;
+
+        await _logRepo.SaveAsync(entry, ct);
+        return entry;
+    }
+
+    public async Task<int> CopyEntriesFromDateAsync(
+        DateOnly sourceDate,
+        DateOnly targetDate,
+        Guid? onlySlotId = null,
+        CancellationToken ct = default)
+    {
+        var sourceEntries = await _logRepo.GetByDateAsync(sourceDate, ct);
+        if (onlySlotId.HasValue)
+            sourceEntries = sourceEntries.Where(e => e.MealSlotId == onlySlotId.Value).ToList();
+
+        foreach (var src in sourceEntries)
+        {
+            var copy = new FoodLogEntry
+            {
+                Id = Guid.NewGuid(),
+                Date = targetDate,
+                MealSlotId = src.MealSlotId,
+                FoodItemId = src.FoodItemId,
+                MealId = src.MealId,
+                NameSnapshot = src.NameSnapshot,
+                BrandSnapshot = src.BrandSnapshot,
+                QuantityGrams = src.QuantityGrams,
+                Servings = src.Servings,
+                ServingLabel = src.ServingLabel,
+                CaloriesKcal = src.CaloriesKcal,
+                FatG = src.FatG,
+                SaturatedFatG = src.SaturatedFatG,
+                CarbsG = src.CarbsG,
+                SugarsG = src.SugarsG,
+                FibreG = src.FibreG,
+                ProteinG = src.ProteinG,
+                SaltG = src.SaltG,
+                LoggedAtUtc = DateTime.UtcNow
+            };
+            await _logRepo.SaveAsync(copy, ct);
+        }
+
+        return sourceEntries.Count;
     }
 }

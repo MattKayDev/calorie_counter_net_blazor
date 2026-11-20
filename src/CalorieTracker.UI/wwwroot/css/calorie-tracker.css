@@ -17,6 +17,24 @@
     --ct-radius: 16px;
     --ct-radius-sm: 10px;
     --ct-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+    --ct-track: #e2e8f0;
+    --ct-topbar-bg: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+}
+
+[data-theme="dark"] {
+    --ct-bg: #0b1120;
+    --ct-surface: #111827;
+    --ct-surface-muted: #1e293b;
+    --ct-border: #334155;
+    --ct-text: #f1f5f9;
+    --ct-text-muted: #94a3b8;
+    --ct-green: #22c55e;
+    --ct-green-light: rgba(34, 197, 94, 0.16);
+    --ct-green-dark: #4ade80;
+    --ct-red-light: rgba(239, 68, 68, 0.18);
+    --ct-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+    --ct-track: #334155;
+    --ct-topbar-bg: linear-gradient(135deg, #14532d 0%, #115e59 100%);
 }
 
 * {
@@ -46,7 +64,7 @@ html, body {
     position: sticky;
     top: 0;
     z-index: 20;
-    background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+    background: var(--ct-topbar-bg);
     color: #fff;
     padding: 14px 16px;
     box-shadow: 0 2px 10px rgba(22, 163, 74, 0.22);
@@ -214,7 +232,7 @@ html, body {
 
 .ct-bar-track {
     height: 6px;
-    background: #e2e8f0;
+    background: var(--ct-track);
     border-radius: 999px;
     overflow: hidden;
 }
@@ -413,7 +431,7 @@ html, body {
     padding: 10px 12px;
     border-radius: 10px;
     border: 1px solid var(--ct-border);
-    background: #fff;
+    background: var(--ct-surface-muted);
     color: var(--ct-text);
     font-size: 0.92rem;
     outline: none;
@@ -440,7 +458,7 @@ html, body {
 .ct-tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: #e2e8f0;
+    background: var(--ct-track);
     border-radius: 12px;
     padding: 3px;
     gap: 4px;
@@ -458,7 +476,7 @@ html, body {
 }
 
 .ct-tab.active {
-    background: #fff;
+    background: var(--ct-surface);
     color: var(--ct-green-dark);
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
@@ -487,7 +505,7 @@ html, body {
     transform: translateX(-50%);
     width: 100%;
     max-width: 520px;
-    background: #ffffff;
+    background: var(--ct-surface);
     border-top: 1px solid var(--ct-border);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -537,7 +555,8 @@ html, body {
 }
 
 .ct-modal {
-    background: #fff;
+    background: var(--ct-surface);
+    color: var(--ct-text);
     width: 100%;
     max-width: 520px;
     max-height: 90vh;

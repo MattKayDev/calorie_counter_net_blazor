@@ -187,5 +187,51 @@ public class SqliteRepositoryAndLookupTests
 
         var totals = await logRepo.GetDailyCalorieTotalsAsync(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31));
         Assert.Equal(330, totals[pastDate]);
+
+        // Edit quantity in place (200g -> 100g) and verify nutrient rescaling
+        await diary.UpdateEntryQuantityAsync(entries[0], newGrams: 100, slots[1].Id);
+        var updated = await logRepo.GetByDateAsync(pastDate);
+        Assert.Equal(165, updated[0].CaloriesKcal);
+        Assert.Equal(slots[1].Id, updated[0].MealSlotId);
+
+        // Copy day entries to next day
+        var nextDay = pastDate.AddDays(1);
+        var copiedCount = await diary.CopyEntriesFromDateAsync(pastDate, nextDay);
+        Assert.Equal(1, copiedCount);
+        var nextEntries = await logRepo.GetByDateAsync(nextDay);
+        Assert.Single(nextEntries);
+        Assert.Equal(165, nextEntries[0].CaloriesKcal);
+
+        // Water log persistence
+        var waterRepo = new SqliteWaterLogRepository(engine, init);
+        await waterRepo.SaveAsync(new WaterLog { Date = pastDate, AmountMl = 1750 });
+        var loadedWater = await waterRepo.GetByDateAsync(pastDate);
+        Assert.Equal(1750, loadedWater.AmountMl);
+    }
+
+    [Fact]
+    public void GoalWeightCalculator_ComputesTdeeRecommendedCaloriesAndProjectedDate()
+    {
+        var bmr = GoalWeightCalculator.CalculateBmr(weightKg: 85, heightCm: 180, ageYears: 30, BiologicalSex.Male);
+        Assert.Equal(1830, bmr);
+
+        var tdee = GoalWeightCalculator.CalculateTdee(85, 180, 30, BiologicalSex.Male, ActivityLevel.Moderate);
+        Assert.Equal(2836, tdee);
+
+        var rec = GoalWeightCalculator.CalculateRecommendedDailyCalories(tdee!.Value, weeklyWeightChangeKg: -0.5);
+        Assert.Equal(2286, rec);
+
+        // Losing 5 kg at a 550 kcal/day deficit = (5 * 7700) / 550 = 70 days
+        var start = new DateOnly(2026, 11, 20);
+        var proj = GoalWeightCalculator.ProjectGoalDate(start, currentWeightKg: 85, goalWeightKg: 80, tdee: 2836, dailyCalorieIntake: 2286);
+        Assert.True(proj.IsMovingTowardGoal);
+        Assert.False(proj.AlreadyReached);
+        Assert.Equal(70, proj.DaysToGoal);
+        Assert.Equal(start.AddDays(70), proj.EstimatedDate);
+
+        // Eating above TDEE when trying to lose -> not moving toward goal
+        var stalled = GoalWeightCalculator.ProjectGoalDate(start, 85, 80, tdee: 2836, dailyCalorieIntake: 3000);
+        Assert.False(stalled.IsMovingTowardGoal);
+        Assert.Null(stalled.EstimatedDate);
     }
 }

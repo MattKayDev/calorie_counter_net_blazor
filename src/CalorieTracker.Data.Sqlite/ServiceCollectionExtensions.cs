@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMealRepository, SqliteMealRepository>();
         services.AddScoped<IFoodLogRepository, SqliteFoodLogRepository>();
         services.AddScoped<IBodyMeasurementRepository, SqliteBodyMeasurementRepository>();
+        services.AddScoped<IWaterLogRepository, SqliteWaterLogRepository>();
         services.AddScoped<IDatabaseBackupService, SqliteBackupService>();
         return services;
     }

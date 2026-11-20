@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject IUserProfileRepository ProfileRepo
+@inject IThemeService ThemeService
 
 <div class="ct-shell">
     @Body
@@ -22,3 +24,18 @@
         </NavLink>
     </nav>
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await ProfileRepo.GetOrCreateAsync();
+            await ThemeService.ApplyThemeAsync(profile.ThemeMode);
+        }
+        catch
+        {
+            // ignore theme sync errors during early init
+        }
+    }
+}

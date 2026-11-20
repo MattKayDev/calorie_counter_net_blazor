@@ -151,6 +151,22 @@ public sealed class SqliteSchemaInitializer
 
         await _engine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_BodyMeasurements_Date ON BodyMeasurements(Date);", null, ct);
 
+        await _engine.ExecuteAsync("""
+            CREATE TABLE IF NOT EXISTS WaterLogs (
+                Date TEXT PRIMARY KEY,
+                AmountMl INTEGER NOT NULL DEFAULT 0,
+                UpdatedAtUtc TEXT NOT NULL
+            );
+            """, null, ct);
+
+        // Safe additive migrations for existing UserProfiles tables
+        await EnsureColumnAsync("UserProfiles", "AgeYears", "INTEGER NULL DEFAULT 30", ct);
+        await EnsureColumnAsync("UserProfiles", "ActivityLevel", "INTEGER NOT NULL DEFAULT 2", ct);
+        await EnsureColumnAsync("UserProfiles", "GoalWeightKg", "REAL NULL", ct);
+        await EnsureColumnAsync("UserProfiles", "WeeklyWeightChangeKg", "REAL NOT NULL DEFAULT -0.5", ct);
+        await EnsureColumnAsync("UserProfiles", "DailyWaterGoalMl", "INTEGER NOT NULL DEFAULT 2000", ct);
+        await EnsureColumnAsync("UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
+
         // Seed default meal slots if none exist
         var existingSlots = await _engine.QueryAsync("SELECT COUNT(*) AS Cnt FROM MealSlots;", null, ct);
         if (existingSlots.Count == 0 || RowReader.GetInt(existingSlots[0], "Cnt") == 0)
@@ -173,6 +189,16 @@ public sealed class SqliteSchemaInitializer
         }
 
         _initialized = true;
+    }
+
+    private async Task EnsureColumnAsync(string table, string column, string definition, CancellationToken ct)
+    {
+        var cols = await _engine.QueryAsync($"PRAGMA table_info({table});", null, ct);
+        var exists = cols.Any(c => string.Equals(RowReader.GetString(c, "name"), column, StringComparison.OrdinalIgnoreCase));
+        if (!exists)
+        {
+            await _engine.ExecuteAsync($"ALTER TABLE {table} ADD COLUMN {column} {definition};", null, ct);
+        }
     }
 
     public void ResetInitializationState() => _initialized = false;

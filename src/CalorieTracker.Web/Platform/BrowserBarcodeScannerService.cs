@@ -65,3 +65,19 @@ public sealed class BrowserFileDownloadService : IFileDownloadService
         await _js.InvokeVoidAsync("fileDownloadBridge.downloadBase64", fileName, contentType, base64);
     }
 }
+
+public sealed class BrowserThemeService : IThemeService
+{
+    private readonly IJSRuntime _js;
+
+    public BrowserThemeService(IJSRuntime js)
+    {
+        _js = js;
+    }
+
+    public async Task ApplyThemeAsync(CalorieTracker.Domain.Enums.ThemeMode theme)
+    {
+        var mode = theme == CalorieTracker.Domain.Enums.ThemeMode.Dark ? "dark" : "light";
+        await _js.InvokeVoidAsync("themeBridge.apply", mode);
+    }
+}

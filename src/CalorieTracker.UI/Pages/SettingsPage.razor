@@ -1,8 +1,10 @@
 @page "/settings"
 @inject IUserProfileRepository ProfileRepo
+@inject IBodyMeasurementRepository BodyRepo
 @inject IMealSlotRepository SlotRepo
 @inject IDatabaseBackupService BackupService
 @inject IFileDownloadService FileDownload
+@inject IThemeService ThemeService
 
 <div class="ct-topbar">
     <div class="ct-topbar-row">
@@ -16,21 +18,94 @@
         <div class="ct-alert ct-alert-success">@_status</div>
     }
 
+    <!-- Appearance (Light / Dark Mode) -->
+    <div class="ct-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div>
+                <h2 class="ct-card-title">Appearance</h2>
+                <div class="ct-muted">Switch between Light and Dark mode</div>
+            </div>
+            <div class="ct-tabs" style="width:170px;">
+                <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Light ? "active" : "")"
+                        @onclick="() => SetThemeAsync(ThemeMode.Light)">
+                    ☀️ Light
+                </button>
+                <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Dark ? "active" : "")"
+                        @onclick="() => SetThemeAsync(ThemeMode.Dark)">
+                    🌙 Dark
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goal Weight & Calorie Planner -->
+    <div class="ct-card">
+        <h2 class="ct-card-title" style="margin-bottom:8px;">🎯 Goal Weight &amp; Calorie Planner</h2>
+        <div class="ct-muted" style="margin-bottom:10px;">
+            Used to estimate your TDEE, recommended daily calories, and projected goal date.
+        </div>
+
+        <div class="ct-grid-2">
+            <div class="ct-field">
+                <label class="ct-label">Goal Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
+                <input class="ct-input" type="number" step="0.1" @bind="_goalWeightInput" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Target Weekly Pace</label>
+                <select class="ct-select" @bind="_profile.WeeklyWeightChangeKg">
+                    <option value="-1">Lose 1.0 kg / wk (fast)</option>
+                    <option value="-0.75">Lose 0.75 kg / wk</option>
+                    <option value="-0.5">Lose 0.5 kg / wk (steady)</option>
+                    <option value="-0.25">Lose 0.25 kg / wk (gentle)</option>
+                    <option value="0">Maintain weight</option>
+                    <option value="0.25">Gain 0.25 kg / wk (lean)</option>
+                    <option value="0.5">Gain 0.5 kg / wk</option>
+                </select>
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Age (years)</label>
+                <input class="ct-input" type="number" min="13" max="120" @bind="_profile.AgeYears" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Activity Level</label>
+                <select class="ct-select" @bind="_profile.ActivityLevel">
+                    <option value="@ActivityLevel.Sedentary">Sedentary (desk job)</option>
+                    <option value="@ActivityLevel.Light">Light (1–3 days/wk)</option>
+                    <option value="@ActivityLevel.Moderate">Moderate (3–5 days/wk)</option>
+                    <option value="@ActivityLevel.Active">Active (6–7 days/wk)</option>
+                    <option value="@ActivityLevel.VeryActive">Very Active (physical job)</option>
+                </select>
+            </div>
+        </div>
+
+        @{
+            var tdee = GoalWeightCalculator.CalculateTdee(_latestWeightKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
+            var recommended = tdee.HasValue ? GoalWeightCalculator.CalculateRecommendedDailyCalories(tdee.Value, _profile.WeeklyWeightChangeKg) : (double?)null;
+        }
+        @if (recommended is double rec)
+        {
+            <div class="ct-alert ct-alert-info" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">
+                <span>TDEE ~@tdee!.Value.ToString("0") kcal • Recommended: <strong>@rec.ToString("0") kcal/day</strong></span>
+                <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => _profile.DailyCalorieGoal = rec">Apply</button>
+            </div>
+        }
+    </div>
+
     <!-- Goals & Units -->
     <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:12px;">Daily Goals & Profile</h2>
+        <h2 class="ct-card-title" style="margin-bottom:12px;">Daily Goals &amp; Profile</h2>
 
         <div class="ct-grid-2">
             <div class="ct-field">
                 <label class="ct-label">Display Units</label>
-                <select class="ct-select" @bind="_profile.UnitSystem">
+                <select class="ct-select" value="@_profile.UnitSystem" @onchange="OnUnitSystemChanged">
                     <option value="@UnitSystem.Metric">Metric (kg, cm)</option>
                     <option value="@UnitSystem.UkImperial">UK Imperial (st/lb, ft/in)</option>
                     <option value="@UnitSystem.UsImperial">US Imperial (lbs, ft/in)</option>
                 </select>
             </div>
             <div class="ct-field">
-                <label class="ct-label">Biological Sex (US Navy BF%)</label>
+                <label class="ct-label">Biological Sex (US Navy BF% &amp; BMR)</label>
                 <select class="ct-select" @bind="_profile.BiologicalSex">
                     <option value="@BiologicalSex.Unspecified">Not set</option>
                     <option value="@BiologicalSex.Male">Male</option>
@@ -43,6 +118,10 @@
             <div class="ct-field">
                 <label class="ct-label">Daily Calorie Goal (kcal)</label>
                 <input class="ct-input" type="number" step="50" @bind="_profile.DailyCalorieGoal" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Daily Water Goal (ml)</label>
+                <input class="ct-input" type="number" step="250" @bind="_profile.DailyWaterGoalMl" />
             </div>
             <div class="ct-field">
                 <label class="ct-label">Height (cm)</label>
@@ -79,26 +158,32 @@
         </div>
 
         <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:6px;" @onclick="SaveProfileAsync">
-            Save Goals & Preferences
+            Save Goals &amp; Preferences
         </button>
     </div>
 
-    <!-- Custom Meal Slots -->
+    <!-- Custom Meal Slots (with reordering) -->
     <div class="ct-card">
         <h2 class="ct-card-title" style="margin-bottom:8px;">Meal Times / Slots</h2>
         <div class="ct-muted" style="margin-bottom:10px;">
-            Customize when you log food (e.g. Breakfast, Lunch, Dinner, Snacks, Pre-Workout).
+            Customize and reorder when you log food (e.g. Breakfast, Lunch, Dinner, Snacks, Pre-Workout).
         </div>
 
         <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
-            @foreach (var slot in _slots)
+            @for (var i = 0; i < _slots.Count; i++)
             {
+                var idx = i;
+                var slot = _slots[idx];
                 <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
                     <div>
                         <span style="margin-right:6px;">@slot.Icon</span>
                         <strong>@slot.Name</strong>
                     </div>
-                    <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)">🗑️</button>
+                    <div style="display:flex; gap:2px; align-items:center;">
+                        <button class="ct-icon-btn" title="Move up" disabled="@(idx == 0)" @onclick="() => MoveSlotAsync(idx, -1)">▲</button>
+                        <button class="ct-icon-btn" title="Move down" disabled="@(idx == _slots.Count - 1)" @onclick="() => MoveSlotAsync(idx, 1)">▼</button>
+                        <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)">🗑️</button>
+                    </div>
                 </div>
             }
         </div>
@@ -133,6 +218,8 @@
 @code {
     private UserProfile _profile = new();
     private List<MealSlot> _slots = new();
+    private double? _latestWeightKg;
+    private double? _goalWeightInput;
     private string _newSlotName = string.Empty;
     private string _newSlotIcon = "🥪";
     private string? _status;
@@ -146,12 +233,75 @@
     {
         _profile = await ProfileRepo.GetOrCreateAsync();
         _slots = await SlotRepo.GetAllAsync();
+        var latest = await BodyRepo.GetLatestAsync();
+        _latestWeightKg = latest?.WeightKg;
+        SyncGoalWeightInput();
+    }
+
+    private void SyncGoalWeightInput()
+    {
+        if (_profile.GoalWeightKg is double gw)
+        {
+            _goalWeightInput = _profile.UnitSystem == UnitSystem.Metric ? gw : UnitConverter.KgToLbs(gw);
+        }
+        else
+        {
+            _goalWeightInput = null;
+        }
+    }
+
+    private void OnUnitSystemChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<UnitSystem>(e.Value?.ToString(), out var next))
+        {
+            // Persist current input back to kg before converting display
+            if (_goalWeightInput.HasValue)
+            {
+                _profile.GoalWeightKg = _profile.UnitSystem == UnitSystem.Metric
+                    ? _goalWeightInput
+                    : UnitConverter.LbsToKg(_goalWeightInput.Value);
+            }
+            _profile.UnitSystem = next;
+            SyncGoalWeightInput();
+        }
+    }
+
+    private async Task SetThemeAsync(ThemeMode mode)
+    {
+        _profile.ThemeMode = mode;
+        await ProfileRepo.SaveAsync(_profile);
+        await ThemeService.ApplyThemeAsync(mode);
     }
 
     private async Task SaveProfileAsync()
     {
+        if (_goalWeightInput.HasValue && _goalWeightInput.Value > 0)
+        {
+            _profile.GoalWeightKg = _profile.UnitSystem == UnitSystem.Metric
+                ? _goalWeightInput.Value
+                : UnitConverter.LbsToKg(_goalWeightInput.Value);
+        }
+        else
+        {
+            _profile.GoalWeightKg = null;
+        }
+
         await ProfileRepo.SaveAsync(_profile);
         _status = "Goals and preferences saved!";
+    }
+
+    private async Task MoveSlotAsync(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _slots.Count) return;
+
+        (_slots[index], _slots[target]) = (_slots[target], _slots[index]);
+        for (var i = 0; i < _slots.Count; i++)
+        {
+            _slots[i].SortOrder = i;
+            await SlotRepo.SaveAsync(_slots[i]);
+        }
+        _status = "Updated meal slot order.";
     }
 
     private async Task AddSlotAsync()

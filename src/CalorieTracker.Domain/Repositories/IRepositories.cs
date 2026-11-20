@@ -51,6 +51,12 @@ public interface IBodyMeasurementRepository
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
 }
 
+public interface IWaterLogRepository
+{
+    Task<WaterLog> GetByDateAsync(DateOnly date, CancellationToken ct = default);
+    Task SaveAsync(WaterLog log, CancellationToken ct = default);
+}
+
 public interface IDatabaseBackupService
 {
     Task<byte[]> ExportSqliteBytesAsync(CancellationToken ct = default);

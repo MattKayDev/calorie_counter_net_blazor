@@ -1,4 +1,5 @@
 @page "/progress"
+@using System.Globalization
 @inject IUserProfileRepository ProfileRepo
 @inject IBodyMeasurementRepository BodyRepo
 @inject IFoodLogRepository LogRepo
@@ -15,17 +16,28 @@
 </div>
 
 <div class="ct-page">
+    @if (!string.IsNullOrWhiteSpace(_notice))
+    {
+        <div class="ct-alert ct-alert-success">@_notice</div>
+    }
+
     <!-- Latest Summary Cards -->
     <div class="ct-grid-3">
         <div class="ct-card" style="text-align:center; padding:12px 8px;">
             <div class="ct-stat-lbl">Weight</div>
-            <div class="ct-stat-val" style="font-size:1.1rem; margin-top:4px;">
+            <div class="ct-stat-val" style="font-size:1.08rem; margin-top:4px;">
                 @UnitConverter.FormatWeight(_latest?.WeightKg, _profile.UnitSystem)
             </div>
+            @if (_profile.GoalWeightKg is double gw)
+            {
+                <div class="ct-muted" style="font-size:0.68rem; margin-top:3px;">
+                    Goal: @UnitConverter.FormatWeight(gw, _profile.UnitSystem)
+                </div>
+            }
         </div>
         <div class="ct-card" style="text-align:center; padding:12px 8px;">
             <div class="ct-stat-lbl">BMI</div>
-            <div class="ct-stat-val" style="font-size:1.1rem; margin-top:4px;">
+            <div class="ct-stat-val" style="font-size:1.08rem; margin-top:4px;">
                 @(_latest?.ComputedBmi?.ToString("0.0") ?? "—")
             </div>
             <div style="margin-top:4px;">
@@ -36,7 +48,7 @@
         </div>
         <div class="ct-card" style="text-align:center; padding:12px 8px;">
             <div class="ct-stat-lbl">Body Fat</div>
-            <div class="ct-stat-val" style="font-size:1.1rem; margin-top:4px;">
+            <div class="ct-stat-val" style="font-size:1.08rem; margin-top:4px;">
                 @(_latest?.EffectiveBodyFatPercent is double bf ? $"{bf:0.0}%" : "—")
             </div>
             <div class="ct-muted" style="font-size:0.68rem;">
@@ -44,6 +56,96 @@
             </div>
         </div>
     </div>
+
+    <!-- Goal Weight & Target Date Forecast Card -->
+    <div class="ct-card">
+        <div class="ct-card-header">
+            <h2 class="ct-card-title">🎯 Goal Weight & Forecast</h2>
+            @if (_recommendedDailyKcal is double rec && Math.Abs(rec - _profile.DailyCalorieGoal) >= 25)
+            {
+                <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => ApplyRecommendedGoalAsync(rec)">
+                    Use @rec.ToString("0") kcal
+                </button>
+            }
+        </div>
+
+        @if (_latest?.WeightKg is null || _profile.GoalWeightKg is null || _tdee is null)
+        {
+            <div class="ct-muted">
+                Log your current <strong>Weight</strong> &amp; <strong>Height</strong> here, and set your <strong>Goal Weight</strong>, <strong>Age</strong>, and <strong>Activity Level</strong> in <strong>Settings</strong> to calculate your daily calorie target and projected goal date.
+            </div>
+        }
+        else
+        {
+            var diffKg = _latest.WeightKg.Value - _profile.GoalWeightKg.Value;
+            <div class="ct-grid-3" style="margin-bottom:12px;">
+                <div style="background:var(--ct-surface-muted); border-radius:10px; padding:10px; text-align:center;">
+                    <div class="ct-muted" style="font-size:0.7rem;">To Go</div>
+                    <div style="font-weight:800; font-size:0.95rem;">
+                        @(Math.Abs(diffKg) < 0.05 ? "Reached!" : $"{(diffKg > 0 ? "-" : "+")}{UnitConverter.FormatWeight(Math.Abs(diffKg), _profile.UnitSystem)}")
+                    </div>
+                </div>
+                <div style="background:var(--ct-surface-muted); border-radius:10px; padding:10px; text-align:center;">
+                    <div class="ct-muted" style="font-size:0.7rem;">Est. TDEE</div>
+                    <div style="font-weight:800; font-size:0.95rem;">@_tdee.Value.ToString("0") kcal</div>
+                </div>
+                <div style="background:var(--ct-surface-muted); border-radius:10px; padding:10px; text-align:center;">
+                    <div class="ct-muted" style="font-size:0.7rem;">Recommended</div>
+                    <div style="font-weight:800; font-size:0.95rem; color:var(--ct-green-dark);">@(_recommendedDailyKcal?.ToString("0") ?? "—") kcal</div>
+                </div>
+            </div>
+
+            @if (_plannedProjection is not null)
+            {
+                <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px; margin-bottom:8px;">
+                    <div>
+                        <div class="ct-entry-name">At your daily goal (@_profile.DailyCalorieGoal.ToString("0") kcal/day)</div>
+                        <div class="ct-entry-meta">
+                            @FormatProjectionText(_plannedProjection)
+                        </div>
+                    </div>
+                    @if (_plannedProjection.EstimatedDate is DateOnly pd)
+                    {
+                        <span class="ct-badge ct-badge-green">@pd.ToString("dd MMM yyyy")</span>
+                    }
+                </div>
+            }
+
+            @if (_actualAvgKcal is double avgKcal && _actualProjection is not null)
+            {
+                <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
+                    <div>
+                        <div class="ct-entry-name">At your actual tracked pace (@avgKcal.ToString("0") kcal/day avg)</div>
+                        <div class="ct-entry-meta">
+                            @FormatProjectionText(_actualProjection)
+                        </div>
+                    </div>
+                    @if (_actualProjection.EstimatedDate is DateOnly ad)
+                    {
+                        <span class="ct-badge ct-badge-blue">@ad.ToString("dd MMM yyyy")</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="ct-muted" style="font-size:0.78rem;">
+                    Log a few days of food in your Diary to compare your actual tracked pace against your target date.
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Weight Trend Line Chart -->
+    @if (_weightPoints.Count >= 2)
+    {
+        <div class="ct-card">
+            <div class="ct-card-header">
+                <h2 class="ct-card-title">Weight Trend</h2>
+                <span class="ct-muted">@_weightPoints.Count entries</span>
+            </div>
+            @RenderWeightTrendChart()
+        </div>
+    }
 
     <!-- Last 14 Days Calories Bar Chart -->
     <div class="ct-card">
@@ -57,11 +159,11 @@
                 var kcal = _calorieHistory.TryGetValue(day, out var v) ? v : 0;
                 var maxRef = Math.Max(_profile.DailyCalorieGoal * 1.2, _calorieHistory.Values.DefaultIfEmpty(1).Max());
                 var hPct = maxRef > 0 ? Math.Clamp(kcal / maxRef * 100.0, 2, 100) : 2;
-                var barColor = kcal == 0 ? "#e2e8f0" : kcal > _profile.DailyCalorieGoal ? "#ef4444" : "#16a34a";
+                var barColor = kcal == 0 ? "var(--ct-track)" : kcal > _profile.DailyCalorieGoal ? "#ef4444" : "#16a34a";
 
                 <div style="flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;"
                      title="@day.ToString("dd MMM"): @kcal.ToString("0") kcal">
-                    <div style="width:100%; max-width:20px; height:@hPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:@barColor; border-radius:4px 4px 0 0;"></div>
+                    <div style="width:100%; max-width:20px; height:@hPct.ToString("0", CultureInfo.InvariantCulture)%; background:@barColor; border-radius:4px 4px 0 0;"></div>
                     <span style="font-size:0.62rem; color:var(--ct-text-muted); margin-top:4px;">@day.Day</span>
                 </div>
             }
@@ -178,9 +280,17 @@
 @code {
     private UserProfile _profile = new();
     private List<BodyMeasurement> _measurements = new();
+    private List<(DateOnly Date, double WeightKg)> _weightPoints = new();
     private BodyMeasurement? _latest;
     private Dictionary<DateOnly, double> _calorieHistory = new();
     private List<DateOnly> _last14Days = new();
+
+    private double? _tdee;
+    private double? _recommendedDailyKcal;
+    private double? _actualAvgKcal;
+    private GoalProjectionResult? _plannedProjection;
+    private GoalProjectionResult? _actualProjection;
+    private string? _notice;
 
     private bool _modalOpen;
     private DateOnly _entryDate = DateOnly.FromDateTime(DateTime.Today);
@@ -202,11 +312,98 @@
         _measurements = await BodyRepo.GetAllAsync();
         _latest = _measurements.FirstOrDefault();
 
+        _weightPoints = _measurements
+            .Where(m => m.WeightKg.HasValue)
+            .OrderBy(m => m.Date)
+            .Select(m => (m.Date, m.WeightKg!.Value))
+            .ToList();
+
         var today = DateOnly.FromDateTime(DateTime.Today);
         var start = today.AddDays(-13);
         _last14Days = Enumerable.Range(0, 14).Select(i => start.AddDays(i)).ToList();
         _calorieHistory = await LogRepo.GetDailyCalorieTotalsAsync(start, today);
+
+        // Compute TDEE, recommended daily calories, and planned vs actual goal projections
+        var height = _latest?.HeightCm ?? _profile.HeightCm;
+        _tdee = GoalWeightCalculator.CalculateTdee(_latest?.WeightKg, height, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
+        _recommendedDailyKcal = _tdee.HasValue
+            ? GoalWeightCalculator.CalculateRecommendedDailyCalories(_tdee.Value, _profile.WeeklyWeightChangeKg)
+            : null;
+
+        var trackedDays = _calorieHistory.Values.Where(v => v > 0).ToList();
+        _actualAvgKcal = trackedDays.Count > 0 ? Math.Round(trackedDays.Average(), 0) : null;
+
+        if (_latest?.WeightKg is double cw && _profile.GoalWeightKg is double gw && _tdee is double tdee)
+        {
+            _plannedProjection = GoalWeightCalculator.ProjectGoalDate(today, cw, gw, tdee, _profile.DailyCalorieGoal);
+            _actualProjection = _actualAvgKcal is double avg
+                ? GoalWeightCalculator.ProjectGoalDate(today, cw, gw, tdee, avg)
+                : null;
+        }
+        else
+        {
+            _plannedProjection = null;
+            _actualProjection = null;
+        }
     }
+
+    private async Task ApplyRecommendedGoalAsync(double recommended)
+    {
+        _profile.DailyCalorieGoal = recommended;
+        await ProfileRepo.SaveAsync(_profile);
+        _notice = $"Updated your Daily Calorie Goal to {recommended:0} kcal!";
+        await ReloadAsync();
+    }
+
+    private static string FormatProjectionText(GoalProjectionResult proj)
+    {
+        if (proj.AlreadyReached) return "You've reached your goal weight! 🎉";
+        if (!proj.IsMovingTowardGoal)
+            return $"Currently moving away from goal ({proj.ProjectedWeeklyChangeKg:+0.##;-0.##;0} kg/wk). Adjust daily calories.";
+        var weeks = Math.Round((proj.DaysToGoal ?? 0) / 7.0, 1);
+        return $"~{proj.DaysToGoal} days (~{weeks:0.#} wks) • {proj.ProjectedWeeklyChangeKg:+0.##;-0.##;0} kg/wk";
+    }
+
+    private RenderFragment RenderWeightTrendChart() => __builder =>
+    {
+        const double width = 320;
+        const double height = 130;
+        const double padX = 16;
+        const double padY = 16;
+
+        var allVals = _weightPoints.Select(p => p.WeightKg).ToList();
+        if (_profile.GoalWeightKg is double gw) allVals.Add(gw);
+        var minW = allVals.Min() - 1.0;
+        var maxW = allVals.Max() + 1.0;
+        var span = Math.Max(0.5, maxW - minW);
+
+        double MapX(int idx) => padX + (width - 2 * padX) * idx / Math.Max(1, _weightPoints.Count - 1);
+        double MapY(double w) => height - padY - (height - 2 * padY) * ((w - minW) / span);
+
+        var pointsStr = string.Join(" ", _weightPoints.Select((p, i) =>
+            $"{MapX(i).ToString("0.0", CultureInfo.InvariantCulture)},{MapY(p.WeightKg).ToString("0.0", CultureInfo.InvariantCulture)}"));
+
+        <svg viewBox="0 0 320 130" style="width:100%; height:130px; overflow:visible;">
+            @if (_profile.GoalWeightKg is double goalW)
+            {
+                var gy = MapY(goalW).ToString("0.0", CultureInfo.InvariantCulture);
+                <line x1="@padX" y1="@gy" x2="@(width - padX)" y2="@gy"
+                      stroke="#16a34a" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7" />
+                @:<text x="@(width - padX)" y="@(MapY(goalW) - 4)" text-anchor="end" font-size="9" fill="#16a34a">Goal</text>
+            }
+            <polyline fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="@pointsStr" />
+            @for (var i = 0; i < _weightPoints.Count; i++)
+            {
+                var cx = MapX(i).ToString("0.0", CultureInfo.InvariantCulture);
+                var cy = MapY(_weightPoints[i].WeightKg).ToString("0.0", CultureInfo.InvariantCulture);
+                <circle cx="@cx" cy="@cy" r="3.5" fill="#16a34a" />
+            }
+        </svg>
+        <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--ct-text-muted); margin-top:2px;">
+            <span>@_weightPoints.First().Date.ToString("dd MMM") (@UnitConverter.FormatWeight(_weightPoints.First().WeightKg, _profile.UnitSystem))</span>
+            <span>@_weightPoints.Last().Date.ToString("dd MMM") (@UnitConverter.FormatWeight(_weightPoints.Last().WeightKg, _profile.UnitSystem))</span>
+        </div>
+    };
 
     private void OpenLogModal()
     {

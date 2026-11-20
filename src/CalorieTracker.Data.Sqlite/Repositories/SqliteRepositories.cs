@@ -35,7 +35,13 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 SaltGoalG = RowReader.GetDouble(r, "SaltGoalG", 6),
                 FibreGoalG = RowReader.GetDouble(r, "FibreGoalG", 30),
                 HeightCm = RowReader.GetNullableDouble(r, "HeightCm"),
+                AgeYears = RowReader.GetInt(r, "AgeYears", 30),
                 BiologicalSex = (BiologicalSex)RowReader.GetInt(r, "BiologicalSex"),
+                ActivityLevel = (ActivityLevel)RowReader.GetInt(r, "ActivityLevel", (int)ActivityLevel.Moderate),
+                GoalWeightKg = RowReader.GetNullableDouble(r, "GoalWeightKg"),
+                WeeklyWeightChangeKg = RowReader.GetDouble(r, "WeeklyWeightChangeKg", -0.5),
+                DailyWaterGoalMl = RowReader.GetInt(r, "DailyWaterGoalMl", 2000),
+                ThemeMode = (ThemeMode)RowReader.GetInt(r, "ThemeMode"),
                 UnitSystem = (UnitSystem)RowReader.GetInt(r, "UnitSystem"),
                 UpdatedAtUtc = RowReader.GetDateTime(r, "UpdatedAtUtc")
             };
@@ -53,8 +59,9 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
         await _engine.ExecuteAsync("""
             INSERT INTO UserProfiles (
                 Id, DailyCalorieGoal, ProteinGoalG, CarbsGoalG, FatGoalG, SaturatedFatGoalG,
-                SugarGoalG, SaltGoalG, FibreGoalG, HeightCm, BiologicalSex, UnitSystem, UpdatedAtUtc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                SugarGoalG, SaltGoalG, FibreGoalG, HeightCm, AgeYears, BiologicalSex, ActivityLevel,
+                GoalWeightKg, WeeklyWeightChangeKg, DailyWaterGoalMl, ThemeMode, UnitSystem, UpdatedAtUtc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(Id) DO UPDATE SET
                 DailyCalorieGoal = excluded.DailyCalorieGoal,
                 ProteinGoalG = excluded.ProteinGoalG,
@@ -65,7 +72,13 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 SaltGoalG = excluded.SaltGoalG,
                 FibreGoalG = excluded.FibreGoalG,
                 HeightCm = excluded.HeightCm,
+                AgeYears = excluded.AgeYears,
                 BiologicalSex = excluded.BiologicalSex,
+                ActivityLevel = excluded.ActivityLevel,
+                GoalWeightKg = excluded.GoalWeightKg,
+                WeeklyWeightChangeKg = excluded.WeeklyWeightChangeKg,
+                DailyWaterGoalMl = excluded.DailyWaterGoalMl,
+                ThemeMode = excluded.ThemeMode,
                 UnitSystem = excluded.UnitSystem,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
             """,
@@ -73,7 +86,9 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
             {
                 profile.Id.ToString(), profile.DailyCalorieGoal, profile.ProteinGoalG, profile.CarbsGoalG,
                 profile.FatGoalG, profile.SaturatedFatGoalG, profile.SugarGoalG, profile.SaltGoalG,
-                profile.FibreGoalG, profile.HeightCm, (int)profile.BiologicalSex, (int)profile.UnitSystem,
+                profile.FibreGoalG, profile.HeightCm, profile.AgeYears, (int)profile.BiologicalSex,
+                (int)profile.ActivityLevel, profile.GoalWeightKg, profile.WeeklyWeightChangeKg,
+                profile.DailyWaterGoalMl, (int)profile.ThemeMode, (int)profile.UnitSystem,
                 profile.UpdatedAtUtc.ToString("O")
             },
             ct);
@@ -647,6 +662,52 @@ public sealed class SqliteBodyMeasurementRepository : IBodyMeasurementRepository
         IsDeleted = RowReader.GetBool(r, "IsDeleted"),
         UpdatedAtUtc = RowReader.GetDateTime(r, "UpdatedAtUtc")
     };
+}
+
+public sealed class SqliteWaterLogRepository : IWaterLogRepository
+{
+    private readonly ISqliteEngine _engine;
+    private readonly SqliteSchemaInitializer _init;
+
+    public SqliteWaterLogRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    {
+        _engine = engine;
+        _init = init;
+    }
+
+    public async Task<WaterLog> GetByDateAsync(DateOnly date, CancellationToken ct = default)
+    {
+        await _init.EnsureCreatedAsync(ct);
+        var rows = await _engine.QueryAsync(
+            "SELECT * FROM WaterLogs WHERE Date = ? LIMIT 1;",
+            new object?[] { date.ToString("yyyy-MM-dd") }, ct);
+        if (rows.Count > 0)
+        {
+            return new WaterLog
+            {
+                Date = RowReader.GetDateOnly(rows[0], "Date"),
+                AmountMl = RowReader.GetInt(rows[0], "AmountMl"),
+                UpdatedAtUtc = RowReader.GetDateTime(rows[0], "UpdatedAtUtc")
+            };
+        }
+        return new WaterLog { Date = date, AmountMl = 0 };
+    }
+
+    public async Task SaveAsync(WaterLog log, CancellationToken ct = default)
+    {
+        await _init.EnsureCreatedAsync(ct);
+        log.AmountMl = Math.Max(0, log.AmountMl);
+        log.UpdatedAtUtc = DateTime.UtcNow;
+        await _engine.ExecuteAsync("""
+            INSERT INTO WaterLogs (Date, AmountMl, UpdatedAtUtc)
+            VALUES (?, ?, ?)
+            ON CONFLICT(Date) DO UPDATE SET
+                AmountMl = excluded.AmountMl,
+                UpdatedAtUtc = excluded.UpdatedAtUtc;
+            """,
+            new object?[] { log.Date.ToString("yyyy-MM-dd"), log.AmountMl, log.UpdatedAtUtc.ToString("O") },
+            ct);
+    }
 }
 
 public sealed class SqliteBackupService : IDatabaseBackupService

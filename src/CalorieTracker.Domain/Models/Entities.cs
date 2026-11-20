@@ -14,8 +14,21 @@ public sealed class UserProfile
     public double SaltGoalG { get; set; } = 6;
     public double FibreGoalG { get; set; } = 30;
     public double? HeightCm { get; set; }
+    public int? AgeYears { get; set; } = 30;
     public BiologicalSex BiologicalSex { get; set; } = BiologicalSex.Unspecified;
+    public ActivityLevel ActivityLevel { get; set; } = ActivityLevel.Moderate;
+    public double? GoalWeightKg { get; set; }
+    public double WeeklyWeightChangeKg { get; set; } = -0.5;
+    public int DailyWaterGoalMl { get; set; } = 2000;
+    public ThemeMode ThemeMode { get; set; } = ThemeMode.Light;
     public UnitSystem UnitSystem { get; set; } = UnitSystem.Metric;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class WaterLog
+{
+    public DateOnly Date { get; set; }
+    public int AmountMl { get; set; }
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

@@ -58,4 +58,22 @@
             document.body.removeChild(link);
         }
     };
+
+    window.themeBridge = {
+        apply: function (mode) {
+            const theme = mode === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            try { localStorage.setItem('ct-theme', theme); } catch { }
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : '#16a34a');
+        }
+    };
+
+    // Apply cached theme immediately on script load to avoid flash
+    try {
+        const saved = localStorage.getItem('ct-theme');
+        if (saved === 'dark') {
+            window.themeBridge.apply('dark');
+        }
+    } catch { }
 })();

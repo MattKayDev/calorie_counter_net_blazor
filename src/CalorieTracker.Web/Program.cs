@@ -15,6 +15,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<ISqliteEngine, BrowserSqliteEngine>();
 builder.Services.AddScoped<IBarcodeScannerService, BrowserBarcodeScannerService>();
 builder.Services.AddScoped<IFileDownloadService, BrowserFileDownloadService>();
+builder.Services.AddScoped<IThemeService, BrowserThemeService>();
 
 // Local SQLite repositories & application services
 builder.Services.AddSqliteRepositories();
