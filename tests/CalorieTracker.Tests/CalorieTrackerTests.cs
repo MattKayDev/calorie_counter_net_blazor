@@ -173,7 +173,10 @@ public class SqliteRepositoryAndLookupTests
         var diary = new DiaryService(logRepo, bodyRepo, profileRepo);
 
         var slots = await slotRepo.GetAllAsync();
-        Assert.Equal(4, slots.Count); // Breakfast, Lunch, Dinner, Snacks
+        Assert.Equal(5, slots.Count); // Water + Breakfast, Lunch, Dinner, Snacks
+        Assert.True(slots[0].IsWaterTracker);
+        var foodSlots = slots.Where(s => !s.IsWaterTracker).ToList();
+        Assert.Equal(4, foodSlots.Count);
 
         var chicken = await foodRepo.UpsertAsync(new FoodItem
         {
@@ -184,7 +187,7 @@ public class SqliteRepositoryAndLookupTests
         });
 
         var pastDate = new DateOnly(2026, 10, 15);
-        await diary.LogFoodItemAsync(pastDate, slots[0].Id, chicken, grams: 200);
+        await diary.LogFoodItemAsync(pastDate, foodSlots[0].Id, chicken, grams: 200);
 
         var entries = await logRepo.GetByDateAsync(pastDate);
         Assert.Single(entries);
@@ -195,10 +198,10 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal(330, totals[pastDate]);
 
         // Edit quantity in place (200g -> 100g) and verify nutrient rescaling
-        await diary.UpdateEntryQuantityAsync(entries[0], newGrams: 100, slots[1].Id);
+        await diary.UpdateEntryQuantityAsync(entries[0], newGrams: 100, foodSlots[1].Id);
         var updated = await logRepo.GetByDateAsync(pastDate);
         Assert.Equal(165, updated[0].CaloriesKcal);
-        Assert.Equal(slots[1].Id, updated[0].MealSlotId);
+        Assert.Equal(foodSlots[1].Id, updated[0].MealSlotId);
 
         // Copy day entries to next day
         var nextDay = pastDate.AddDays(1);
@@ -212,6 +215,31 @@ public class SqliteRepositoryAndLookupTests
         await waterRepo.SaveAsync(new WaterLog { Date = pastDate, AmountMl = 1750 });
         var loadedWater = await waterRepo.GetByDateAsync(pastDate);
         Assert.Equal(1750, loadedWater.AmountMl);
+
+        // Water slot can be reordered below all food slots, disabled, stay disabled across re-init, and re-enabled
+        var waterSlot = slots.First(s => s.IsWaterTracker);
+        waterSlot.SortOrder = 99;
+        await slotRepo.SaveAsync(waterSlot);
+        var reordered = await slotRepo.GetAllAsync();
+        Assert.True(reordered[^1].IsWaterTracker);
+
+        await slotRepo.DeleteOrArchiveAsync(MealSlot.WaterSlotId);
+        var afterDisable = await slotRepo.GetAllAsync();
+        Assert.Equal(4, afterDisable.Count);
+        Assert.DoesNotContain(afterDisable, s => s.IsWaterTracker);
+
+        // Re-running schema initialization must keep Water disabled when archived
+        personalInit.ResetInitializationState();
+        await personalInit.EnsureCreatedAsync();
+        var afterReinit = await slotRepo.GetAllAsync();
+        Assert.DoesNotContain(afterReinit, s => s.IsWaterTracker);
+
+        // Re-enable Water slot and verify past water logs stay intact
+        var archivedWater = (await slotRepo.GetAllAsync(includeArchived: true)).First(s => s.IsWaterTracker);
+        archivedWater.IsArchived = false;
+        await slotRepo.SaveAsync(archivedWater);
+        Assert.Contains(await slotRepo.GetAllAsync(), s => s.IsWaterTracker);
+        Assert.Equal(1750, (await waterRepo.GetByDateAsync(pastDate)).AmountMl);
 
         // Verify strict separation: foods.sqlite has NO personal tables, personal.sqlite has NO FoodItems table
         var foodDbTables = await foodsEngine.QueryAsync("SELECT name FROM sqlite_master WHERE type='table';");

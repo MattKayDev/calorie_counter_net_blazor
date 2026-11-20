@@ -1,3 +1,5 @@
+using CalorieTracker.Domain.Models;
+
 namespace CalorieTracker.Data.Sqlite;
 
 public sealed class PersonalSqliteSchemaInitializer
@@ -167,6 +169,19 @@ public sealed class PersonalSqliteSchemaInitializer
                     new object?[] { id.ToString(), name, icon, order, now },
                     ct);
             }
+        }
+
+        // Seed built-in Water tracker slot once (fresh DBs and upgrades) without overriding if archived
+        var waterCheck = await _engine.QueryAsync(
+            "SELECT COUNT(*) AS Cnt FROM MealSlots WHERE Id = ?;",
+            new object?[] { MealSlot.WaterSlotId.ToString() },
+            ct);
+        if (waterCheck.Count == 0 || RowReader.GetInt(waterCheck[0], "Cnt") == 0)
+        {
+            await _engine.ExecuteAsync(
+                "INSERT INTO MealSlots (Id, Name, Icon, SortOrder, IsArchived, UpdatedAtUtc) VALUES (?, ?, ?, ?, 0, ?);",
+                new object?[] { MealSlot.WaterSlotId.ToString(), "Water", "water", -1, DateTime.UtcNow.ToString("O") },
+                ct);
         }
 
         _initialized = true;

@@ -300,8 +300,27 @@
     else if (_section == SettingsSection.MealSlots)
     {
         <div class="ct-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div>
+                    <h2 class="ct-card-title">Water Tracking</h2>
+                    <div class="ct-muted">Show the daily water bar in your Diary</div>
+                </div>
+                <div class="ct-tabs" style="width:140px; flex-shrink:0;">
+                    <button type="button" class="ct-tab @(_waterEnabled ? "active" : "")"
+                            @onclick="() => SetWaterTrackingAsync(true)">
+                        On
+                    </button>
+                    <button type="button" class="ct-tab @(!_waterEnabled ? "active" : "")"
+                            @onclick="() => SetWaterTrackingAsync(false)">
+                        Off
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="ct-card">
             <div class="ct-muted" style="margin-bottom:10px;">
-                Customize and reorder when you log food or drinks (e.g. Breakfast, Lunch, Dinner, Snacks, Drinks). Tap a row to edit its name or icon.
+                Customize and reorder your Diary sections (move Water up or down anytime, or tap a meal time to edit).
             </div>
 
             <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
@@ -310,14 +329,32 @@
                     var idx = i;
                     var slot = _slots[idx];
                     <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
-                        <div style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;" @onclick="() => OpenEditSlotModal(slot)">
-                            <span style="color:var(--ct-green); display:inline-flex;"><AppIcon Name="@slot.Icon" Size="18" /></span>
-                            <strong>@slot.Name</strong>
-                        </div>
+                        @if (slot.IsWaterTracker)
+                        {
+                            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                                <span style="color:var(--ct-green); display:inline-flex;"><AppIcon Name="@AppIcons.Water" Size="18" /></span>
+                                <strong>@slot.Name</strong>
+                                <span class="ct-muted" style="font-size:0.75rem;">Tracker</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;" @onclick="() => OpenEditSlotModal(slot)">
+                                <span style="color:var(--ct-green); display:inline-flex;"><AppIcon Name="@slot.Icon" Size="18" /></span>
+                                <strong>@slot.Name</strong>
+                            </div>
+                        }
                         <div style="display:flex; gap:2px; align-items:center;">
                             <button class="ct-icon-btn" title="Move up" disabled="@(idx == 0)" @onclick="() => MoveSlotAsync(idx, -1)"><AppIcon Name="@AppIcons.ChevronUp" Size="16" /></button>
                             <button class="ct-icon-btn" title="Move down" disabled="@(idx == _slots.Count - 1)" @onclick="() => MoveSlotAsync(idx, 1)"><AppIcon Name="@AppIcons.ChevronDown" Size="16" /></button>
-                            <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                            @if (slot.IsWaterTracker)
+                            {
+                                <button class="ct-icon-btn" title="Turn off water tracking" @onclick="() => SetWaterTrackingAsync(false)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                            }
+                            else
+                            {
+                                <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                            }
                         </div>
                     </div>
                 }
@@ -453,6 +490,7 @@
     private string? _updateMessage;
     private UserProfile _profile = new();
     private List<MealSlot> _slots = new();
+    private bool _waterEnabled;
     private double? _latestWeightKg;
     private double? _goalWeightInput;
     private string _newSlotName = string.Empty;
@@ -494,7 +532,9 @@
     private async Task ReloadAsync()
     {
         _profile = await ProfileRepo.GetOrCreateAsync();
-        _slots = await SlotRepo.GetAllAsync();
+        var allSlots = await SlotRepo.GetAllAsync(includeArchived: true);
+        _slots = allSlots.Where(s => !s.IsArchived).ToList();
+        _waterEnabled = allSlots.Any(s => s.IsWaterTracker && !s.IsArchived);
         var latest = await BodyRepo.GetLatestAsync();
         _latestWeightKg = latest?.WeightKg;
         SyncGoalWeightInput();
@@ -679,6 +719,41 @@
         _slotModalOpen = false;
         _editingSlotId = null;
         _newSlotName = string.Empty;
+        await ReloadAsync();
+    }
+
+    private async Task SetWaterTrackingAsync(bool enabled)
+    {
+        if (enabled)
+        {
+            var all = await SlotRepo.GetAllAsync(includeArchived: true);
+            var water = all.FirstOrDefault(s => s.IsWaterTracker);
+            if (water is null)
+            {
+                var nextOrder = _slots.Count > 0 ? _slots.Max(s => s.SortOrder) + 1 : 0;
+                await SlotRepo.SaveAsync(new MealSlot
+                {
+                    Id = MealSlot.WaterSlotId,
+                    Name = "Water",
+                    Icon = AppIcons.Water,
+                    SortOrder = nextOrder,
+                    IsArchived = false
+                });
+            }
+            else if (water.IsArchived)
+            {
+                water.IsArchived = false;
+                water.SortOrder = _slots.Count > 0 ? _slots.Max(s => s.SortOrder) + 1 : 0;
+                await SlotRepo.SaveAsync(water);
+            }
+            _status = "Water tracking enabled.";
+        }
+        else
+        {
+            await SlotRepo.DeleteOrArchiveAsync(MealSlot.WaterSlotId);
+            _status = "Water tracking hidden from Diary (past water logs preserved).";
+        }
+
         await ReloadAsync();
     }
 

@@ -90,74 +90,78 @@ else
 
     <!-- Scrollable Water & Meal Times Area -->
     <div class="ct-diary-scroll">
-        <!-- Daily Water Tracker Card -->
-        <div class="ct-card" style="padding:13px 16px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Water" Size="17" /></span>
-                    <strong style="font-size:0.94rem;">Water</strong>
-                    <span class="ct-muted">
-                        @_waterLog.AmountMl / @_profile.DailyWaterGoalMl ml
-                    </span>
-                </div>
-                <div style="display:flex; gap:4px;">
-                    <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => AdjustWaterAsync(-250)">-250</button>
-                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => AdjustWaterAsync(250)">+250ml</button>
-                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => AdjustWaterAsync(500)">+500</button>
-                </div>
-            </div>
-            @{
-                var waterPct = _profile.DailyWaterGoalMl > 0
-                    ? Math.Clamp((double)_waterLog.AmountMl / _profile.DailyWaterGoalMl * 100.0, 0, 100)
-                    : 0;
-            }
-            <div class="ct-bar-track" style="height:8px;">
-                <div class="ct-bar-fill" style="width:@waterPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:#0ea5e9;"></div>
-            </div>
-        </div>
-
-        <!-- Meal Slot Cards -->
         @foreach (var slot in _slots)
         {
-            var slotEntries = _entries.Where(e => e.MealSlotId == slot.Id).ToList();
-            var slotKcal = slotEntries.Sum(e => e.CaloriesKcal);
-
-            <div class="ct-card ct-slot-card">
-                <div class="ct-slot-head" role="button" tabindex="0" @onclick="() => OpenAddModal(slot)">
-                    <div class="ct-slot-left">
-                        <div class="ct-slot-icon"><AppIcon Name="@slot.Icon" Size="20" /></div>
-                        <div>
-                            <div class="ct-slot-name">@slot.Name</div>
-                            <div class="ct-slot-kcal">
-                                @(slotEntries.Count == 0 ? "Nothing logged yet" : $"{slotKcal:0} kcal • {slotEntries.Count} item{(slotEntries.Count == 1 ? "" : "s")}")
-                            </div>
+            if (slot.IsWaterTracker)
+            {
+                <!-- Daily Water Tracker Card -->
+                <div class="ct-card" style="padding:13px 16px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Water" Size="17" /></span>
+                            <strong style="font-size:0.94rem;">Water</strong>
+                            <span class="ct-muted">
+                                @_waterLog.AmountMl / @_profile.DailyWaterGoalMl ml
+                            </span>
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => AdjustWaterAsync(-250)">-250</button>
+                            <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => AdjustWaterAsync(250)">+250ml</button>
+                            <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => AdjustWaterAsync(500)">+500</button>
                         </div>
                     </div>
-                    <span class="ct-slot-plus" aria-hidden="true">+</span>
+                    @{
+                        var waterPct = _profile.DailyWaterGoalMl > 0
+                            ? Math.Clamp((double)_waterLog.AmountMl / _profile.DailyWaterGoalMl * 100.0, 0, 100)
+                            : 0;
+                    }
+                    <div class="ct-bar-track" style="height:8px;">
+                        <div class="ct-bar-fill" style="width:@waterPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:#0ea5e9;"></div>
+                    </div>
                 </div>
+            }
+            else
+            {
+                var slotEntries = _entries.Where(e => e.MealSlotId == slot.Id).ToList();
+                var slotKcal = slotEntries.Sum(e => e.CaloriesKcal);
 
-                @if (slotEntries.Count > 0)
-                {
-                    <div class="ct-slot-entries">
-                        @foreach (var entry in slotEntries)
-                        {
-                            <div class="ct-entry-row">
-                                <div style="cursor:pointer; flex:1;" @onclick="() => OpenEditEntryModal(entry)">
-                                    <div class="ct-entry-name">@entry.NameSnapshot</div>
-                                    <div class="ct-entry-meta">
-                                        @entry.ServingLabel • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
-                                    </div>
-                                </div>
-                                <div class="ct-entry-right">
-                                    <span class="ct-entry-kcal">@entry.CaloriesKcal.ToString("0") kcal</span>
-                                    <button class="ct-icon-btn" title="Edit quantity" @onclick="() => OpenEditEntryModal(entry)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
-                                    <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                <div class="ct-card ct-slot-card">
+                    <div class="ct-slot-head" role="button" tabindex="0" @onclick="() => OpenAddModal(slot)">
+                        <div class="ct-slot-left">
+                            <div class="ct-slot-icon"><AppIcon Name="@slot.Icon" Size="20" /></div>
+                            <div>
+                                <div class="ct-slot-name">@slot.Name</div>
+                                <div class="ct-slot-kcal">
+                                    @(slotEntries.Count == 0 ? "Nothing logged yet" : $"{slotKcal:0} kcal • {slotEntries.Count} item{(slotEntries.Count == 1 ? "" : "s")}")
                                 </div>
                             </div>
-                        }
+                        </div>
+                        <span class="ct-slot-plus" aria-hidden="true">+</span>
                     </div>
-                }
-            </div>
+
+                    @if (slotEntries.Count > 0)
+                    {
+                        <div class="ct-slot-entries">
+                            @foreach (var entry in slotEntries)
+                            {
+                                <div class="ct-entry-row">
+                                    <div style="cursor:pointer; flex:1;" @onclick="() => OpenEditEntryModal(entry)">
+                                        <div class="ct-entry-name">@entry.NameSnapshot</div>
+                                        <div class="ct-entry-meta">
+                                            @entry.ServingLabel • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
+                                        </div>
+                                    </div>
+                                    <div class="ct-entry-right">
+                                        <span class="ct-entry-kcal">@entry.CaloriesKcal.ToString("0") kcal</span>
+                                        <button class="ct-icon-btn" title="Edit quantity" @onclick="() => OpenEditEntryModal(entry)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
+                                        <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         }
     </div>
 }
@@ -183,7 +187,7 @@ else
                     <div class="ct-field">
                         <label class="ct-label">Meal Slot</label>
                         <select class="ct-select" @bind="_editSlotId">
-                            @foreach (var s in _slots)
+                            @foreach (var s in FoodSlots)
                             {
                                 <option value="@s.Id">@s.Name</option>
                             }
@@ -222,7 +226,7 @@ else
     </div>
 }
 
-@if (!_loading && _slots.Count > 0)
+@if (!_loading && FoodSlots.Count > 0)
 {
     <button class="ct-fab" title="Log food" aria-label="Log food" @onclick="OpenQuickLogModal">
         +
@@ -233,7 +237,7 @@ else
               Date="_selectedDate"
               MealSlotId="_activeSlotId"
               MealSlotName="@_activeSlotName"
-              MealSlots="_slots"
+              MealSlots="FoodSlots"
               OnLogged="LoadDayAsync"
               OnClose="() => _addModalOpen = false" />
 
@@ -247,6 +251,7 @@ else
     private DateOnly _selectedDate = DateOnly.FromDateTime(DateTime.Today);
     private UserProfile _profile = new();
     private List<MealSlot> _slots = new();
+    private List<MealSlot> FoodSlots => _slots.Where(s => !s.IsWaterTracker).ToList();
     private List<FoodLogEntry> _entries = new();
     private WaterLog _waterLog = new();
     private NutrientProfile _totals = NutrientProfile.Zero;
@@ -341,8 +346,9 @@ else
 
     private void OpenQuickLogModal()
     {
-        if (_slots.Count == 0) return;
-        OpenAddModal(_slots[0]);
+        var foodSlots = FoodSlots;
+        if (foodSlots.Count == 0) return;
+        OpenAddModal(foodSlots[0]);
     }
 
     private async Task DeleteEntryAsync(Guid id)

@@ -35,12 +35,16 @@ public sealed class WaterLog
 
 public sealed class MealSlot
 {
+    public static readonly Guid WaterSlotId = Guid.Parse("11111111-1111-1111-1111-111111111105");
+
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public string Icon { get; set; } = "🍽️";
     public int SortOrder { get; set; }
     public bool IsArchived { get; set; }
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public bool IsWaterTracker => Id == WaterSlotId;
 }
 
 public sealed class FoodItem
