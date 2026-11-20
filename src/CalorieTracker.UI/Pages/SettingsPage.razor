@@ -22,6 +22,12 @@
                 <div class="ct-brand">@GetSectionTitle(_section)</div>
             }
         </div>
+        @if (_section == SettingsSection.MealSlots)
+        {
+            <button class="ct-datebtn" style="padding:6px 8px; font-size:0.84rem;" @onclick="OpenAddSlotModal">
+                + Add
+            </button>
+        }
     </div>
 </div>
 
@@ -295,17 +301,17 @@
     {
         <div class="ct-card">
             <div class="ct-muted" style="margin-bottom:10px;">
-                Customize and reorder when you log food or drinks (e.g. Breakfast, Lunch, Dinner, Snacks, Drinks).
+                Customize and reorder when you log food or drinks (e.g. Breakfast, Lunch, Dinner, Snacks, Drinks). Tap a row to edit its name or icon.
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
                 @for (var i = 0; i < _slots.Count; i++)
                 {
                     var idx = i;
                     var slot = _slots[idx];
                     <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="color:var(--ct-green);"><AppIcon Name="@slot.Icon" Size="18" /></span>
+                        <div style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;" @onclick="() => OpenEditSlotModal(slot)">
+                            <span style="color:var(--ct-green); display:inline-flex;"><AppIcon Name="@slot.Icon" Size="18" /></span>
                             <strong>@slot.Name</strong>
                         </div>
                         <div style="display:flex; gap:2px; align-items:center;">
@@ -317,23 +323,9 @@
                 }
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:8px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="color:var(--ct-green); display:inline-flex; flex-shrink:0;"><AppIcon Name="@_newSlotIcon" Size="20" /></span>
-                    <select class="ct-select" @bind="_newSlotIcon">
-                        <option value="@AppIcons.MealMorning">Morning</option>
-                        <option value="@AppIcons.MealMidday">Midday</option>
-                        <option value="@AppIcons.MealMain">Meal</option>
-                        <option value="@AppIcons.MealSnack">Snack</option>
-                        <option value="@AppIcons.MealDrink">Drinks</option>
-                        <option value="@AppIcons.MealEvening">Evening</option>
-                    </select>
-                </div>
-                <div style="display:flex; gap:8px;">
-                    <input class="ct-input" placeholder="New meal time (e.g. Drinks, Pre-Workout)" @bind="_newSlotName" />
-                    <button class="ct-btn ct-btn-soft" @onclick="AddSlotAsync">Add</button>
-                </div>
-            </div>
+            <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="OpenAddSlotModal">
+                + Add Meal Time
+            </button>
         </div>
     }
     else if (_section == SettingsSection.Backups)
@@ -405,6 +397,43 @@
     }
 </div>
 
+@if (_slotModalOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="() => _slotModalOpen = false">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>@(_editingSlotId.HasValue ? "Edit Meal Time" : "Add Meal Time")</strong>
+                <button class="ct-icon-btn" @onclick="() => _slotModalOpen = false"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
+            </div>
+            <div class="ct-modal-body">
+                <div class="ct-field">
+                    <label class="ct-label">Name</label>
+                    <input class="ct-input" placeholder="e.g. Drinks, Snacks, Pre-Workout" @bind="_newSlotName" />
+                </div>
+
+                <div class="ct-field" style="margin-top:6px;">
+                    <label class="ct-label">Icon</label>
+                    <div class="ct-swatch-grid">
+                        @foreach (var opt in _mealIconOptions)
+                        {
+                            <button type="button"
+                                    class="ct-swatch @(_newSlotIcon == opt.Icon ? "active" : "")"
+                                    @onclick="() => _newSlotIcon = opt.Icon">
+                                <span class="ct-swatch-icon"><AppIcon Name="@opt.Icon" Size="20" /></span>
+                                <span>@opt.Label</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:14px;" @onclick="SaveSlotModalAsync">
+                    @(_editingSlotId.HasValue ? "Save Changes" : "Add Meal Time")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private enum SettingsSection
     {
@@ -427,8 +456,22 @@
     private double? _latestWeightKg;
     private double? _goalWeightInput;
     private string _newSlotName = string.Empty;
-    private string _newSlotIcon = AppIcons.MealSnack;
+    private string _newSlotIcon = AppIcons.MealMain;
+    private bool _slotModalOpen;
+    private Guid? _editingSlotId;
     private string? _status;
+
+    private static readonly (string Icon, string Label)[] _mealIconOptions =
+    {
+        (AppIcons.MealMorning, "Morning"),
+        (AppIcons.MealMidday, "Midday"),
+        (AppIcons.MealMain, "Meal"),
+        (AppIcons.MealSnack, "Snack"),
+        (AppIcons.MealTea, "Tea"),
+        (AppIcons.MealDrink, "Drinks"),
+        (AppIcons.MealEvening, "Evening"),
+        (AppIcons.Nutrition, "Workout")
+    };
 
     private static readonly (ColorScheme Scheme, string Label, string Hex)[] _colorOptions =
     {
@@ -587,19 +630,55 @@
         _status = "Updated meal slot order.";
     }
 
-    private async Task AddSlotAsync()
+    private void OpenAddSlotModal()
+    {
+        _editingSlotId = null;
+        _newSlotName = string.Empty;
+        _newSlotIcon = AppIcons.MealMain;
+        _slotModalOpen = true;
+    }
+
+    private void OpenEditSlotModal(MealSlot slot)
+    {
+        _editingSlotId = slot.Id;
+        _newSlotName = slot.Name;
+        _newSlotIcon = AppIcon.NormalizeName(slot.Icon);
+        _slotModalOpen = true;
+    }
+
+    private async Task SaveSlotModalAsync()
     {
         if (string.IsNullOrWhiteSpace(_newSlotName)) return;
-        var nextOrder = _slots.Count > 0 ? _slots.Max(s => s.SortOrder) + 1 : 0;
-        await SlotRepo.SaveAsync(new MealSlot
+
+        var icon = string.IsNullOrWhiteSpace(_newSlotIcon) ? AppIcons.MealMain : _newSlotIcon.Trim();
+
+        if (_editingSlotId.HasValue)
         {
-            Id = Guid.NewGuid(),
-            Name = _newSlotName.Trim(),
-            Icon = string.IsNullOrWhiteSpace(_newSlotIcon) ? "🍽️" : _newSlotIcon.Trim(),
-            SortOrder = nextOrder
-        });
+            var existing = _slots.FirstOrDefault(s => s.Id == _editingSlotId.Value);
+            if (existing is not null)
+            {
+                existing.Name = _newSlotName.Trim();
+                existing.Icon = icon;
+                await SlotRepo.SaveAsync(existing);
+                _status = $"Updated \"{existing.Name}\".";
+            }
+        }
+        else
+        {
+            var nextOrder = _slots.Count > 0 ? _slots.Max(s => s.SortOrder) + 1 : 0;
+            await SlotRepo.SaveAsync(new MealSlot
+            {
+                Id = Guid.NewGuid(),
+                Name = _newSlotName.Trim(),
+                Icon = icon,
+                SortOrder = nextOrder
+            });
+            _status = "Added new meal time.";
+        }
+
+        _slotModalOpen = false;
+        _editingSlotId = null;
         _newSlotName = string.Empty;
-        _status = "Added new meal slot.";
         await ReloadAsync();
     }
 

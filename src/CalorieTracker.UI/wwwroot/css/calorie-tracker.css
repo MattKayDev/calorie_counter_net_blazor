@@ -171,6 +171,14 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
+.ct-swatch-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    color: var(--ct-green);
+}
+
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
@@ -508,10 +516,13 @@ html, body {
     justify-content: space-between;
     gap: 10px;
     padding: 10px 14px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
 }
 
-.ct-entry-row:last-child {
+.ct-slot-entries .ct-entry-row {
+    border-bottom: 1px solid var(--ct-border);
+}
+
+.ct-slot-entries .ct-entry-row:last-child {
     border-bottom: none;
 }
 
