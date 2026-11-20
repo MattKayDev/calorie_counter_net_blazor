@@ -12,7 +12,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 // Platform adapters (swappable for .NET MAUI Blazor Hybrid later)
-builder.Services.AddScoped<ISqliteEngine, BrowserSqliteEngine>();
+builder.Services.AddScoped<IPersonalSqliteEngine, PersonalBrowserSqliteEngine>();
+builder.Services.AddScoped<IFoodsSqliteEngine, FoodsBrowserSqliteEngine>();
 builder.Services.AddScoped<IBarcodeScannerService, BrowserBarcodeScannerService>();
 builder.Services.AddScoped<IFileDownloadService, BrowserFileDownloadService>();
 builder.Services.AddScoped<IThemeService, BrowserThemeService>();

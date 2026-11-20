@@ -107,9 +107,10 @@ public class SqliteRepositoryAndLookupTests
     [Fact]
     public async Task BarcodeLookup_ChecksLocalFirst_CachesApiResult_AndSkipsApiOnSecondScan()
     {
-        using var engine = new InMemorySqliteEngine();
-        var init = new SqliteSchemaInitializer(engine);
-        var foodRepo = new SqliteFoodItemRepository(engine, init);
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
         var fakeOff = new FakeOpenFoodFactsClient();
         var lookup = new FoodLookupService(foodRepo, fakeOff);
 
@@ -130,9 +131,10 @@ public class SqliteRepositoryAndLookupTests
     [Fact]
     public async Task NameSearch_EnrichesLocalDbFromApi_WithoutDuplicates()
     {
-        using var engine = new InMemorySqliteEngine();
-        var init = new SqliteSchemaInitializer(engine);
-        var foodRepo = new SqliteFoodItemRepository(engine, init);
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
         var fakeOff = new FakeOpenFoodFactsClient();
         var lookup = new FoodLookupService(foodRepo, fakeOff);
 
@@ -155,15 +157,19 @@ public class SqliteRepositoryAndLookupTests
     }
 
     [Fact]
-    public async Task DiaryLogging_AndHistoricalDateTotals_WorkEndToEnd()
+    public async Task DiaryLogging_AndHistoricalDateTotals_WorkEndToEnd_WithStrictDbSeparation()
     {
-        using var engine = new InMemorySqliteEngine();
-        var init = new SqliteSchemaInitializer(engine);
-        var profileRepo = new SqliteUserProfileRepository(engine, init);
-        var slotRepo = new SqliteMealSlotRepository(engine, init);
-        var foodRepo = new SqliteFoodItemRepository(engine, init);
-        var logRepo = new SqliteFoodLogRepository(engine, init);
-        var bodyRepo = new SqliteBodyMeasurementRepository(engine, init);
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+
+        var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
+        var slotRepo = new SqliteMealSlotRepository(personalEngine, personalInit);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+        var logRepo = new SqliteFoodLogRepository(personalEngine, personalInit);
+        var bodyRepo = new SqliteBodyMeasurementRepository(personalEngine, personalInit);
+        var waterRepo = new SqliteWaterLogRepository(personalEngine, personalInit);
         var diary = new DiaryService(logRepo, bodyRepo, profileRepo);
 
         var slots = await slotRepo.GetAllAsync();
@@ -203,10 +209,23 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal(165, nextEntries[0].CaloriesKcal);
 
         // Water log persistence
-        var waterRepo = new SqliteWaterLogRepository(engine, init);
         await waterRepo.SaveAsync(new WaterLog { Date = pastDate, AmountMl = 1750 });
         var loadedWater = await waterRepo.GetByDateAsync(pastDate);
         Assert.Equal(1750, loadedWater.AmountMl);
+
+        // Verify strict separation: foods.sqlite has NO personal tables, personal.sqlite has NO FoodItems table
+        var foodDbTables = await foodsEngine.QueryAsync("SELECT name FROM sqlite_master WHERE type='table';");
+        var foodTableNames = foodDbTables.Select(r => r["name"].GetString()).ToList();
+        Assert.Contains("FoodItems", foodTableNames);
+        Assert.DoesNotContain("FoodLogEntries", foodTableNames);
+        Assert.DoesNotContain("UserProfiles", foodTableNames);
+        Assert.DoesNotContain("BodyMeasurements", foodTableNames);
+
+        var personalDbTables = await personalEngine.QueryAsync("SELECT name FROM sqlite_master WHERE type='table';");
+        var personalTableNames = personalDbTables.Select(r => r["name"].GetString()).ToList();
+        Assert.Contains("FoodLogEntries", personalTableNames);
+        Assert.Contains("UserProfiles", personalTableNames);
+        Assert.DoesNotContain("FoodItems", personalTableNames);
     }
 
     [Fact]

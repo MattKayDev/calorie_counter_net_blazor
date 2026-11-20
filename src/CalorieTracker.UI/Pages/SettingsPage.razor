@@ -195,21 +195,39 @@
         </div>
     </div>
 
-    <!-- SQLite Backup & Restore -->
+    <!-- SQLite Backup & Restore (Split Databases) -->
     <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:8px;">SQLite Database Backup</h2>
+        <h2 class="ct-card-title" style="margin-bottom:8px;">🔒 Private Personal Data (personal.sqlite)</h2>
         <div class="ct-muted" style="margin-bottom:12px;">
-            All your data is stored locally in a real SQLite database on this device. Export a <code>.sqlite</code> backup anytime or restore on another device.
+            Contains your diary logs, body measurements, water logs, saved meals, and goals. Kept strictly private on this device.
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="ct-btn ct-btn-primary" @onclick="ExportBackupAsync">
-                ⬇ Export .sqlite Backup
+            <button class="ct-btn ct-btn-primary" @onclick="ExportPersonalBackupAsync">
+                ⬇ Export personal.sqlite
             </button>
 
             <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
-                ⬆ Restore .sqlite File
-                <InputFile OnChange="ImportBackupAsync" accept=".sqlite,.db" style="display:none;" />
+                ⬆ Restore personal.sqlite
+                <InputFile OnChange="ImportPersonalBackupAsync" accept=".sqlite,.db" style="display:none;" />
+            </label>
+        </div>
+    </div>
+
+    <div class="ct-card">
+        <h2 class="ct-card-title" style="margin-bottom:8px;">🥗 Shareable Food Catalog (foods.sqlite)</h2>
+        <div class="ct-muted" style="margin-bottom:12px;">
+            Contains only your food library (searched, scanned, and custom foods) with <strong>zero personal data</strong> — ready to export, share, or merge into a hosted database later.
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="ct-btn ct-btn-soft" @onclick="ExportFoodsBackupAsync">
+                ⬇ Export foods.sqlite
+            </button>
+
+            <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
+                ⬆ Import / Restore foods.sqlite
+                <InputFile OnChange="ImportFoodsBackupAsync" accept=".sqlite,.db" style="display:none;" />
             </label>
         </div>
     </div>
@@ -327,23 +345,42 @@
         await ReloadAsync();
     }
 
-    private async Task ExportBackupAsync()
+    private async Task ExportPersonalBackupAsync()
     {
-        var bytes = await BackupService.ExportSqliteBytesAsync();
-        var fileName = $"calorietracker-backup-{DateTime.Now:yyyyMMdd-HHmm}.sqlite";
+        var bytes = await BackupService.ExportPersonalSqliteBytesAsync();
+        var fileName = $"personal-{DateTime.Now:yyyyMMdd-HHmm}.sqlite";
         await FileDownload.DownloadBytesAsync(fileName, "application/x-sqlite3", bytes);
-        _status = $"Exported {fileName} ({bytes.Length / 1024.0:0.0} KB).";
+        _status = $"Exported private personal database {fileName} ({bytes.Length / 1024.0:0.0} KB).";
     }
 
-    private async Task ImportBackupAsync(InputFileChangeEventArgs e)
+    private async Task ImportPersonalBackupAsync(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file is null) return;
         await using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
-        await BackupService.ImportSqliteBytesAsync(ms.ToArray());
+        await BackupService.ImportPersonalSqliteBytesAsync(ms.ToArray());
         await ReloadAsync();
-        _status = "SQLite database restored successfully!";
+        _status = "Personal SQLite database restored successfully!";
+    }
+
+    private async Task ExportFoodsBackupAsync()
+    {
+        var bytes = await BackupService.ExportFoodsSqliteBytesAsync();
+        var fileName = $"foods-{DateTime.Now:yyyyMMdd-HHmm}.sqlite";
+        await FileDownload.DownloadBytesAsync(fileName, "application/x-sqlite3", bytes);
+        _status = $"Exported shareable food catalog {fileName} ({bytes.Length / 1024.0:0.0} KB).";
+    }
+
+    private async Task ImportFoodsBackupAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        await using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        await BackupService.ImportFoodsSqliteBytesAsync(ms.ToArray());
+        _status = "Food catalog SQLite database restored successfully!";
     }
 }

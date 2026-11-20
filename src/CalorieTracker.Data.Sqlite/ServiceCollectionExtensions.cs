@@ -8,7 +8,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSqliteRepositories(this IServiceCollection services)
     {
-        services.AddScoped<SqliteSchemaInitializer>();
+        services.AddScoped<PersonalSqliteSchemaInitializer>();
+        services.AddScoped<FoodsSqliteSchemaInitializer>();
         services.AddScoped<IUserProfileRepository, SqliteUserProfileRepository>();
         services.AddScoped<IMealSlotRepository, SqliteMealSlotRepository>();
         services.AddScoped<IFoodItemRepository, SqliteFoodItemRepository>();

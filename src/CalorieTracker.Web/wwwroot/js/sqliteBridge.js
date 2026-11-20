@@ -1,11 +1,11 @@
 (function () {
     const IDB_NAME = 'CalorieTrackerSqliteDB';
     const IDB_STORE = 'files';
-    const IDB_KEY = 'calorietracker.sqlite';
+    const LEGACY_KEY = 'calorietracker.sqlite';
 
     let SQL = null;
-    let db = null;
-    let initPromise = null;
+    const dbs = {};
+    const initPromises = {};
 
     function openIdb() {
         return new Promise((resolve, reject) => {
@@ -21,24 +21,28 @@
         });
     }
 
-    async function loadFromIdb() {
+    async function loadFromIdb(key) {
         const idb = await openIdb();
         return new Promise((resolve, reject) => {
             const tx = idb.transaction(IDB_STORE, 'readonly');
-            const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+            const req = tx.objectStore(IDB_STORE).get(key);
             req.onsuccess = () => resolve(req.result || null);
             req.onerror = () => reject(req.error);
         });
     }
 
-    async function saveToIdb(uint8Array) {
+    async function saveToIdb(key, uint8Array) {
         const idb = await openIdb();
         return new Promise((resolve, reject) => {
             const tx = idb.transaction(IDB_STORE, 'readwrite');
-            tx.objectStore(IDB_STORE).put(uint8Array, IDB_KEY);
+            tx.objectStore(IDB_STORE).put(uint8Array, key);
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(tx.error);
         });
+    }
+
+    function storageKey(dbName) {
+        return `${dbName || 'personal'}.sqlite`;
     }
 
     function normalizeParams(params) {
@@ -66,27 +70,44 @@
     }
 
     window.sqliteBridge = {
-        init: function () {
-            if (initPromise) return initPromise;
-            initPromise = (async () => {
+        init: function (dbName) {
+            const name = dbName || 'personal';
+            if (initPromises[name]) return initPromises[name];
+
+            initPromises[name] = (async () => {
                 if (!SQL) {
                     SQL = await window.initSqlJs({
                         locateFile: file => `lib/sqljs/${file}`
                     });
                 }
-                const savedBytes = await loadFromIdb();
+
+                const key = storageKey(name);
+                let savedBytes = await loadFromIdb(key);
+
+                // Seamless upgrade: if opening 'personal' for the first time and legacy single-DB exists, load it.
+                if ((!savedBytes || savedBytes.length === 0) && name === 'personal') {
+                    const legacyBytes = await loadFromIdb(LEGACY_KEY);
+                    if (legacyBytes && legacyBytes.length > 0) {
+                        savedBytes = legacyBytes;
+                        await saveToIdb(key, new Uint8Array(legacyBytes));
+                    }
+                }
+
                 if (savedBytes && savedBytes.length > 0) {
-                    db = new SQL.Database(new Uint8Array(savedBytes));
+                    dbs[name] = new SQL.Database(new Uint8Array(savedBytes));
                 } else {
-                    db = new SQL.Database();
-                    await saveToIdb(db.export());
+                    dbs[name] = new SQL.Database();
+                    await saveToIdb(key, dbs[name].export());
                 }
             })();
-            return initPromise;
+
+            return initPromises[name];
         },
 
-        execute: async function (sql, params) {
-            await this.init();
+        execute: async function (dbName, sql, params) {
+            const name = dbName || 'personal';
+            await this.init(name);
+            const db = dbs[name];
             const stmt = db.prepare(sql);
             try {
                 const bound = normalizeParams(params);
@@ -95,11 +116,13 @@
             } finally {
                 stmt.free();
             }
-            await saveToIdb(db.export());
+            await saveToIdb(storageKey(name), db.export());
         },
 
-        query: async function (sql, params) {
-            await this.init();
+        query: async function (dbName, sql, params) {
+            const name = dbName || 'personal';
+            await this.init(name);
+            const db = dbs[name];
             const stmt = db.prepare(sql);
             const rows = [];
             try {
@@ -114,18 +137,20 @@
             return rows;
         },
 
-        exportBase64: async function () {
-            await this.init();
-            return uint8ToBase64(db.export());
+        exportBase64: async function (dbName) {
+            const name = dbName || 'personal';
+            await this.init(name);
+            return uint8ToBase64(dbs[name].export());
         },
 
-        importBase64: async function (base64) {
-            await this.init();
+        importBase64: async function (dbName, base64) {
+            const name = dbName || 'personal';
+            await this.init(name);
             const bytes = base64ToUint8(base64);
             const nextDb = new SQL.Database(bytes);
-            if (db) db.close();
-            db = nextDb;
-            await saveToIdb(db.export());
+            if (dbs[name]) dbs[name].close();
+            dbs[name] = nextDb;
+            await saveToIdb(storageKey(name), nextDb.export());
         }
     };
 })();

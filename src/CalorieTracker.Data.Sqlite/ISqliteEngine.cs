@@ -17,6 +17,17 @@ public interface ISqliteEngine
     Task ImportBytesAsync(byte[] bytes, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Private on-device SQLite database for user profile, diary logs, meals, water, and body metrics.
+/// </summary>
+public interface IPersonalSqliteEngine : ISqliteEngine { }
+
+/// <summary>
+/// Shareable SQLite database for the food catalog (Open Food Facts cache, barcodes, custom foods).
+/// Contains zero personal diary or body-metric data so it can be exported/merged cleanly.
+/// </summary>
+public interface IFoodsSqliteEngine : ISqliteEngine { }
+
 internal static class RowReader
 {
     public static string GetString(Dictionary<string, JsonElement> row, string col, string fallback = "")

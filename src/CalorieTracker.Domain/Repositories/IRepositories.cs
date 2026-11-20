@@ -59,6 +59,8 @@ public interface IWaterLogRepository
 
 public interface IDatabaseBackupService
 {
-    Task<byte[]> ExportSqliteBytesAsync(CancellationToken ct = default);
-    Task ImportSqliteBytesAsync(byte[] sqliteBytes, CancellationToken ct = default);
+    Task<byte[]> ExportPersonalSqliteBytesAsync(CancellationToken ct = default);
+    Task ImportPersonalSqliteBytesAsync(byte[] sqliteBytes, CancellationToken ct = default);
+    Task<byte[]> ExportFoodsSqliteBytesAsync(CancellationToken ct = default);
+    Task ImportFoodsSqliteBytesAsync(byte[] sqliteBytes, CancellationToken ct = default);
 }

@@ -8,7 +8,7 @@ namespace CalorieTracker.Tests;
 /// Real SQLite engine backed by Microsoft.Data.Sqlite (in-memory) for fast, authentic integration tests.
 /// This is also the exact pattern a future .NET MAUI Blazor Hybrid host can use for native SQLite!
 /// </summary>
-internal sealed class InMemorySqliteEngine : ISqliteEngine, IDisposable
+internal class InMemorySqliteEngine : ISqliteEngine, IDisposable
 {
     private readonly SqliteConnection _conn;
 
@@ -83,3 +83,6 @@ internal sealed class InMemorySqliteEngine : ISqliteEngine, IDisposable
 
     public void Dispose() => _conn.Dispose();
 }
+
+internal sealed class InMemoryPersonalSqliteEngine : InMemorySqliteEngine, IPersonalSqliteEngine { }
+internal sealed class InMemoryFoodsSqliteEngine : InMemorySqliteEngine, IFoodsSqliteEngine { }

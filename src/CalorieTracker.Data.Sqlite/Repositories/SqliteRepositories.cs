@@ -7,10 +7,10 @@ namespace CalorieTracker.Data.Sqlite.Repositories;
 
 public sealed class SqliteUserProfileRepository : IUserProfileRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _engine;
+    private readonly PersonalSqliteSchemaInitializer _init;
 
-    public SqliteUserProfileRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteUserProfileRepository(IPersonalSqliteEngine engine, PersonalSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -97,10 +97,10 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
 
 public sealed class SqliteMealSlotRepository : IMealSlotRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _engine;
+    private readonly PersonalSqliteSchemaInitializer _init;
 
-    public SqliteMealSlotRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteMealSlotRepository(IPersonalSqliteEngine engine, PersonalSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -158,10 +158,10 @@ public sealed class SqliteMealSlotRepository : IMealSlotRepository
 
 public sealed class SqliteFoodItemRepository : IFoodItemRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IFoodsSqliteEngine _engine;
+    private readonly FoodsSqliteSchemaInitializer _init;
 
-    public SqliteFoodItemRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteFoodItemRepository(IFoodsSqliteEngine engine, FoodsSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -327,10 +327,10 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
 
 public sealed class SqliteMealRepository : IMealRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _engine;
+    private readonly PersonalSqliteSchemaInitializer _init;
 
-    public SqliteMealRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteMealRepository(IPersonalSqliteEngine engine, PersonalSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -454,10 +454,10 @@ public sealed class SqliteMealRepository : IMealRepository
 
 public sealed class SqliteFoodLogRepository : IFoodLogRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _engine;
+    private readonly PersonalSqliteSchemaInitializer _init;
 
-    public SqliteFoodLogRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteFoodLogRepository(IPersonalSqliteEngine engine, PersonalSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -578,10 +578,10 @@ public sealed class SqliteFoodLogRepository : IFoodLogRepository
 
 public sealed class SqliteBodyMeasurementRepository : IBodyMeasurementRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _engine;
+    private readonly PersonalSqliteSchemaInitializer _init;
 
-    public SqliteBodyMeasurementRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteBodyMeasurementRepository(IPersonalSqliteEngine engine, PersonalSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -666,10 +666,10 @@ public sealed class SqliteBodyMeasurementRepository : IBodyMeasurementRepository
 
 public sealed class SqliteWaterLogRepository : IWaterLogRepository
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _engine;
+    private readonly PersonalSqliteSchemaInitializer _init;
 
-    public SqliteWaterLogRepository(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteWaterLogRepository(IPersonalSqliteEngine engine, PersonalSqliteSchemaInitializer init)
     {
         _engine = engine;
         _init = init;
@@ -712,25 +712,46 @@ public sealed class SqliteWaterLogRepository : IWaterLogRepository
 
 public sealed class SqliteBackupService : IDatabaseBackupService
 {
-    private readonly ISqliteEngine _engine;
-    private readonly SqliteSchemaInitializer _init;
+    private readonly IPersonalSqliteEngine _personalEngine;
+    private readonly PersonalSqliteSchemaInitializer _personalInit;
+    private readonly IFoodsSqliteEngine _foodsEngine;
+    private readonly FoodsSqliteSchemaInitializer _foodsInit;
 
-    public SqliteBackupService(ISqliteEngine engine, SqliteSchemaInitializer init)
+    public SqliteBackupService(
+        IPersonalSqliteEngine personalEngine,
+        PersonalSqliteSchemaInitializer personalInit,
+        IFoodsSqliteEngine foodsEngine,
+        FoodsSqliteSchemaInitializer foodsInit)
     {
-        _engine = engine;
-        _init = init;
+        _personalEngine = personalEngine;
+        _personalInit = personalInit;
+        _foodsEngine = foodsEngine;
+        _foodsInit = foodsInit;
     }
 
-    public async Task<byte[]> ExportSqliteBytesAsync(CancellationToken ct = default)
+    public async Task<byte[]> ExportPersonalSqliteBytesAsync(CancellationToken ct = default)
     {
-        await _init.EnsureCreatedAsync(ct);
-        return await _engine.ExportBytesAsync(ct);
+        await _personalInit.EnsureCreatedAsync(ct);
+        return await _personalEngine.ExportBytesAsync(ct);
     }
 
-    public async Task ImportSqliteBytesAsync(byte[] sqliteBytes, CancellationToken ct = default)
+    public async Task ImportPersonalSqliteBytesAsync(byte[] sqliteBytes, CancellationToken ct = default)
     {
-        await _engine.ImportBytesAsync(sqliteBytes, ct);
-        _init.ResetInitializationState();
-        await _init.EnsureCreatedAsync(ct);
+        await _personalEngine.ImportBytesAsync(sqliteBytes, ct);
+        _personalInit.ResetInitializationState();
+        await _personalInit.EnsureCreatedAsync(ct);
+    }
+
+    public async Task<byte[]> ExportFoodsSqliteBytesAsync(CancellationToken ct = default)
+    {
+        await _foodsInit.EnsureCreatedAsync(ct);
+        return await _foodsEngine.ExportBytesAsync(ct);
+    }
+
+    public async Task ImportFoodsSqliteBytesAsync(byte[] sqliteBytes, CancellationToken ct = default)
+    {
+        await _foodsEngine.ImportBytesAsync(sqliteBytes, ct);
+        _foodsInit.ResetInitializationState();
+        await _foodsInit.EnsureCreatedAsync(ct);
     }
 }
