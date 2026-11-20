@@ -642,10 +642,102 @@ html, body {
     background: var(--ct-surface);
     border-top: 1px solid var(--ct-border);
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
     z-index: 30;
     box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* Settings Menu Rows */
+.ct-menu-card {
+    padding: 4px 0;
+    overflow: hidden;
+}
+
+.ct-menu-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--ct-border);
+    color: var(--ct-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ct-menu-row:last-child {
+    border-bottom: none;
+}
+
+.ct-menu-row:hover {
+    background: var(--ct-surface-muted);
+}
+
+.ct-menu-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.ct-menu-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--ct-green-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.ct-menu-title {
+    font-weight: 700;
+    font-size: 0.94rem;
+}
+
+.ct-menu-sub {
+    font-size: 0.78rem;
+    color: var(--ct-text-muted);
+    margin-top: 1px;
+}
+
+.ct-menu-chevron {
+    color: var(--ct-text-muted);
+    font-size: 1.15rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.ct-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ct-cog-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-size: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.ct-cog-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
 }
 
 .ct-nav-item {

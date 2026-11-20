@@ -5,10 +5,22 @@
 @inject IDatabaseBackupService BackupService
 @inject IFileDownloadService FileDownload
 @inject IThemeService ThemeService
+@inject NavigationManager Nav
 
 <div class="ct-topbar">
     <div class="ct-topbar-row">
-        <div class="ct-brand">⚙️ Settings & Data</div>
+        <div class="ct-topbar-left">
+            @if (_section == SettingsSection.Menu)
+            {
+                <button class="ct-cog-btn" title="Back to Diary" @onclick='() => Nav.NavigateTo("")'>←</button>
+                <div class="ct-brand">Settings</div>
+            }
+            else
+            {
+                <button class="ct-cog-btn" title="Back to Settings" @onclick="BackToMenu">←</button>
+                <div class="ct-brand">@GetSectionTitle(_section)</div>
+            }
+        </div>
     </div>
 </div>
 
@@ -18,95 +30,233 @@
         <div class="ct-alert ct-alert-success">@_status</div>
     }
 
-    <!-- Appearance (Light / Dark Mode + Color Scheme) -->
-    <div class="ct-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-            <div>
-                <h2 class="ct-card-title">Appearance</h2>
-                <div class="ct-muted">Theme &amp; accent color scheme</div>
+    @if (_section == SettingsSection.Menu)
+    {
+        <!-- Main Settings Menu -->
+        <div class="ct-card ct-menu-card">
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.Appearance)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">🎨</div>
+                    <div>
+                        <div class="ct-menu-title">Appearance</div>
+                        <div class="ct-menu-sub">
+                            @(_profile.ThemeMode == ThemeMode.Dark ? "Dark Mode" : "Light Mode") • @GetSchemeLabel(_profile.ColorScheme)
+                        </div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.GoalPlanner)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">🎯</div>
+                    <div>
+                        <div class="ct-menu-title">Goal Weight &amp; Calorie Planner</div>
+                        <div class="ct-menu-sub">
+                            @(_profile.GoalWeightKg is double gw ? $"Goal {UnitConverter.FormatWeight(gw, _profile.UnitSystem)} • {_profile.WeeklyWeightChangeKg:+0.##;-0.##;0} kg/wk" : "Set goal weight, age & activity level")
+                        </div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.NutritionGoals)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">🥗</div>
+                    <div>
+                        <div class="ct-menu-title">Daily Nutrition &amp; Water Goals</div>
+                        <div class="ct-menu-sub">
+                            @_profile.DailyCalorieGoal.ToString("0") kcal • P @_profile.ProteinGoalG.ToString("0")g • @_profile.DailyWaterGoalMl ml water
+                        </div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.ProfileUnits)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">👤</div>
+                    <div>
+                        <div class="ct-menu-title">Profile &amp; Measurement Units</div>
+                        <div class="ct-menu-sub">
+                            @FormatUnitLabel(_profile.UnitSystem) • @UnitConverter.FormatHeight(_profile.HeightCm, _profile.UnitSystem) • @_profile.BiologicalSex
+                        </div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.MealSlots)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">🍽️</div>
+                    <div>
+                        <div class="ct-menu-title">Meal Times &amp; Slots</div>
+                        <div class="ct-menu-sub">@_slots.Count active meal slots (add, reorder, archive)</div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.Backups)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">💾</div>
+                    <div>
+                        <div class="ct-menu-title">Data &amp; SQLite Backups</div>
+                        <div class="ct-menu-sub">Export or restore personal.sqlite &amp; foods.sqlite</div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+        </div>
+    }
+    else if (_section == SettingsSection.Appearance)
+    {
+        <div class="ct-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;">
+                <div>
+                    <h2 class="ct-card-title">Theme Mode</h2>
+                    <div class="ct-muted">Switch between Light and Dark mode</div>
+                </div>
+                <div class="ct-tabs" style="width:170px;">
+                    <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Light ? "active" : "")"
+                            @onclick="() => SetThemeAsync(ThemeMode.Light)">
+                        ☀️ Light
+                    </button>
+                    <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Dark ? "active" : "")"
+                            @onclick="() => SetThemeAsync(ThemeMode.Dark)">
+                        🌙 Dark
+                    </button>
+                </div>
             </div>
-            <div class="ct-tabs" style="width:170px;">
-                <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Light ? "active" : "")"
-                        @onclick="() => SetThemeAsync(ThemeMode.Light)">
-                    ☀️ Light
-                </button>
-                <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Dark ? "active" : "")"
-                        @onclick="() => SetThemeAsync(ThemeMode.Dark)">
-                    🌙 Dark
-                </button>
+
+            <div style="font-weight:700; font-size:0.9rem; margin-bottom:4px;">Color Scheme</div>
+            <div class="ct-muted">Choose your accent color (saved automatically)</div>
+
+            <div class="ct-swatch-grid">
+                @foreach (var opt in _colorOptions)
+                {
+                    <button class="ct-swatch @(_profile.ColorScheme == opt.Scheme ? "active" : "")"
+                            @onclick="() => SetColorSchemeAsync(opt.Scheme)">
+                        <span class="ct-swatch-dot" style="background:@opt.Hex;"></span>
+                        <span>@opt.Label</span>
+                    </button>
+                }
             </div>
         </div>
+    }
+    else if (_section == SettingsSection.GoalPlanner)
+    {
+        <div class="ct-card">
+            <div class="ct-muted" style="margin-bottom:12px;">
+                Calculates your BMR, TDEE, recommended daily calories, and projected target date.
+            </div>
 
-        <div class="ct-swatch-grid">
-            @foreach (var opt in _colorOptions)
-            {
-                <button class="ct-swatch @(_profile.ColorScheme == opt.Scheme ? "active" : "")"
-                        @onclick="() => SetColorSchemeAsync(opt.Scheme)">
-                    <span class="ct-swatch-dot" style="background:@opt.Hex;"></span>
-                    <span>@opt.Label</span>
-                </button>
+            <div class="ct-grid-2">
+                <div class="ct-field">
+                    <label class="ct-label">Goal Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
+                    <input class="ct-input" type="number" step="0.1" @bind="_goalWeightInput" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Target Weekly Pace</label>
+                    <select class="ct-select" @bind="_profile.WeeklyWeightChangeKg">
+                        <option value="-1">Lose 1.0 kg / wk (fast)</option>
+                        <option value="-0.75">Lose 0.75 kg / wk</option>
+                        <option value="-0.5">Lose 0.5 kg / wk (steady)</option>
+                        <option value="-0.25">Lose 0.25 kg / wk (gentle)</option>
+                        <option value="0">Maintain weight</option>
+                        <option value="0.25">Gain 0.25 kg / wk (lean)</option>
+                        <option value="0.5">Gain 0.5 kg / wk</option>
+                    </select>
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Age (years)</label>
+                    <input class="ct-input" type="number" min="13" max="120" @bind="_profile.AgeYears" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Activity Level</label>
+                    <select class="ct-select" @bind="_profile.ActivityLevel">
+                        <option value="@ActivityLevel.Sedentary">Sedentary (desk job)</option>
+                        <option value="@ActivityLevel.Light">Light (1–3 days/wk)</option>
+                        <option value="@ActivityLevel.Moderate">Moderate (3–5 days/wk)</option>
+                        <option value="@ActivityLevel.Active">Active (6–7 days/wk)</option>
+                        <option value="@ActivityLevel.VeryActive">Very Active (physical job)</option>
+                    </select>
+                </div>
+            </div>
+
+            @{
+                var tdee = GoalWeightCalculator.CalculateTdee(_latestWeightKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
+                var recommended = tdee.HasValue ? GoalWeightCalculator.CalculateRecommendedDailyCalories(tdee.Value, _profile.WeeklyWeightChangeKg) : (double?)null;
             }
+            @if (recommended is double rec)
+            {
+                <div class="ct-alert ct-alert-info" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
+                    <span>TDEE ~@tdee!.Value.ToString("0") kcal • Recommended: <strong>@rec.ToString("0") kcal/day</strong></span>
+                    <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => ApplyRecommendedCaloriesAsync(rec)">Apply &amp; Save</button>
+                </div>
+            }
+            else
+            {
+                <div class="ct-alert ct-alert-warn" style="margin-bottom:12px;">
+                    Log your current Weight in <strong>Progress</strong> and set your Height in <strong>Profile &amp; Units</strong> to see your recommended daily calories.
+                </div>
+            }
+
+            <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveProfileAsync">
+                Save Goal Settings
+            </button>
         </div>
-    </div>
+    }
+    else if (_section == SettingsSection.NutritionGoals)
+    {
+        <div class="ct-card">
+            <div class="ct-grid-2">
+                <div class="ct-field">
+                    <label class="ct-label">Daily Calorie Goal (kcal)</label>
+                    <input class="ct-input" type="number" step="50" @bind="_profile.DailyCalorieGoal" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Daily Water Goal (ml)</label>
+                    <input class="ct-input" type="number" step="250" @bind="_profile.DailyWaterGoalMl" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Protein Goal (g)</label>
+                    <input class="ct-input" type="number" @bind="_profile.ProteinGoalG" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Carbs Goal (g)</label>
+                    <input class="ct-input" type="number" @bind="_profile.CarbsGoalG" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Fat Goal (g)</label>
+                    <input class="ct-input" type="number" @bind="_profile.FatGoalG" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Saturated Fat Max (g)</label>
+                    <input class="ct-input" type="number" @bind="_profile.SaturatedFatGoalG" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Sugars Max (g)</label>
+                    <input class="ct-input" type="number" @bind="_profile.SugarGoalG" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Salt Max (g)</label>
+                    <input class="ct-input" type="number" step="0.5" @bind="_profile.SaltGoalG" />
+                </div>
+                <div class="ct-field">
+                    <label class="ct-label">Fibre Goal (g)</label>
+                    <input class="ct-input" type="number" @bind="_profile.FibreGoalG" />
+                </div>
+            </div>
 
-    <!-- Goal Weight & Calorie Planner -->
-    <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:8px;">🎯 Goal Weight &amp; Calorie Planner</h2>
-        <div class="ct-muted" style="margin-bottom:10px;">
-            Used to estimate your TDEE, recommended daily calories, and projected goal date.
+            <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:6px;" @onclick="SaveProfileAsync">
+                Save Nutrition Goals
+            </button>
         </div>
-
-        <div class="ct-grid-2">
-            <div class="ct-field">
-                <label class="ct-label">Goal Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
-                <input class="ct-input" type="number" step="0.1" @bind="_goalWeightInput" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Target Weekly Pace</label>
-                <select class="ct-select" @bind="_profile.WeeklyWeightChangeKg">
-                    <option value="-1">Lose 1.0 kg / wk (fast)</option>
-                    <option value="-0.75">Lose 0.75 kg / wk</option>
-                    <option value="-0.5">Lose 0.5 kg / wk (steady)</option>
-                    <option value="-0.25">Lose 0.25 kg / wk (gentle)</option>
-                    <option value="0">Maintain weight</option>
-                    <option value="0.25">Gain 0.25 kg / wk (lean)</option>
-                    <option value="0.5">Gain 0.5 kg / wk</option>
-                </select>
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Age (years)</label>
-                <input class="ct-input" type="number" min="13" max="120" @bind="_profile.AgeYears" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Activity Level</label>
-                <select class="ct-select" @bind="_profile.ActivityLevel">
-                    <option value="@ActivityLevel.Sedentary">Sedentary (desk job)</option>
-                    <option value="@ActivityLevel.Light">Light (1–3 days/wk)</option>
-                    <option value="@ActivityLevel.Moderate">Moderate (3–5 days/wk)</option>
-                    <option value="@ActivityLevel.Active">Active (6–7 days/wk)</option>
-                    <option value="@ActivityLevel.VeryActive">Very Active (physical job)</option>
-                </select>
-            </div>
-        </div>
-
-        @{
-            var tdee = GoalWeightCalculator.CalculateTdee(_latestWeightKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
-            var recommended = tdee.HasValue ? GoalWeightCalculator.CalculateRecommendedDailyCalories(tdee.Value, _profile.WeeklyWeightChangeKg) : (double?)null;
-        }
-        @if (recommended is double rec)
-        {
-            <div class="ct-alert ct-alert-info" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">
-                <span>TDEE ~@tdee!.Value.ToString("0") kcal • Recommended: <strong>@rec.ToString("0") kcal/day</strong></span>
-                <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => ApplyRecommendedCaloriesAsync(rec)">Apply &amp; Save</button>
-            </div>
-        }
-    </div>
-
-    <!-- Goals & Units -->
-    <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:12px;">Daily Goals &amp; Profile</h2>
-
-        <div class="ct-grid-2">
+    }
+    else if (_section == SettingsSection.ProfileUnits)
+    {
+        <div class="ct-card">
             <div class="ct-field">
                 <label class="ct-label">Display Units</label>
                 <select class="ct-select" value="@_profile.UnitSystem" @onchange="OnUnitSystemChanged">
@@ -115,136 +265,112 @@
                     <option value="@UnitSystem.UsImperial">US Imperial (lbs, ft/in)</option>
                 </select>
             </div>
-            <div class="ct-field">
-                <label class="ct-label">Biological Sex (US Navy BF% &amp; BMR)</label>
-                <select class="ct-select" @bind="_profile.BiologicalSex">
-                    <option value="@BiologicalSex.Unspecified">Not set</option>
-                    <option value="@BiologicalSex.Male">Male</option>
-                    <option value="@BiologicalSex.Female">Female</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="ct-grid-2">
-            <div class="ct-field">
-                <label class="ct-label">Daily Calorie Goal (kcal)</label>
-                <input class="ct-input" type="number" step="50" @bind="_profile.DailyCalorieGoal" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Daily Water Goal (ml)</label>
-                <input class="ct-input" type="number" step="250" @bind="_profile.DailyWaterGoalMl" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Height (cm)</label>
-                <input class="ct-input" type="number" step="0.5" @bind="_profile.HeightCm" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Protein Goal (g)</label>
-                <input class="ct-input" type="number" @bind="_profile.ProteinGoalG" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Carbs Goal (g)</label>
-                <input class="ct-input" type="number" @bind="_profile.CarbsGoalG" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Fat Goal (g)</label>
-                <input class="ct-input" type="number" @bind="_profile.FatGoalG" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Saturated Fat Max (g)</label>
-                <input class="ct-input" type="number" @bind="_profile.SaturatedFatGoalG" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Sugars Max (g)</label>
-                <input class="ct-input" type="number" @bind="_profile.SugarGoalG" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Salt Max (g)</label>
-                <input class="ct-input" type="number" step="0.5" @bind="_profile.SaltGoalG" />
-            </div>
-            <div class="ct-field">
-                <label class="ct-label">Fibre Goal (g)</label>
-                <input class="ct-input" type="number" @bind="_profile.FibreGoalG" />
-            </div>
-        </div>
-
-        <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:6px;" @onclick="SaveProfileAsync">
-            Save Goals &amp; Preferences
-        </button>
-    </div>
-
-    <!-- Custom Meal Slots (with reordering) -->
-    <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:8px;">Meal Times / Slots</h2>
-        <div class="ct-muted" style="margin-bottom:10px;">
-            Customize and reorder when you log food (e.g. Breakfast, Lunch, Dinner, Snacks, Pre-Workout).
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
-            @for (var i = 0; i < _slots.Count; i++)
-            {
-                var idx = i;
-                var slot = _slots[idx];
-                <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
-                    <div>
-                        <span style="margin-right:6px;">@slot.Icon</span>
-                        <strong>@slot.Name</strong>
-                    </div>
-                    <div style="display:flex; gap:2px; align-items:center;">
-                        <button class="ct-icon-btn" title="Move up" disabled="@(idx == 0)" @onclick="() => MoveSlotAsync(idx, -1)">▲</button>
-                        <button class="ct-icon-btn" title="Move down" disabled="@(idx == _slots.Count - 1)" @onclick="() => MoveSlotAsync(idx, 1)">▼</button>
-                        <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)">🗑️</button>
-                    </div>
+            <div class="ct-grid-2">
+                <div class="ct-field">
+                    <label class="ct-label">Height (cm)</label>
+                    <input class="ct-input" type="number" step="0.5" @bind="_profile.HeightCm" />
                 </div>
-            }
-        </div>
+                <div class="ct-field">
+                    <label class="ct-label">Biological Sex (BF% &amp; BMR)</label>
+                    <select class="ct-select" @bind="_profile.BiologicalSex">
+                        <option value="@BiologicalSex.Unspecified">Not set</option>
+                        <option value="@BiologicalSex.Male">Male</option>
+                        <option value="@BiologicalSex.Female">Female</option>
+                    </select>
+                </div>
+            </div>
 
-        <div style="display:flex; gap:8px;">
-            <input class="ct-input" style="width:60px; text-align:center;" @bind="_newSlotIcon" />
-            <input class="ct-input" placeholder="New meal time (e.g. Pre-Workout)" @bind="_newSlotName" />
-            <button class="ct-btn ct-btn-soft" @onclick="AddSlotAsync">Add</button>
-        </div>
-    </div>
-
-    <!-- SQLite Backup & Restore (Split Databases) -->
-    <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:8px;">🔒 Private Personal Data (personal.sqlite)</h2>
-        <div class="ct-muted" style="margin-bottom:12px;">
-            Contains your diary logs, body measurements, water logs, saved meals, and goals. Kept strictly private on this device.
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="ct-btn ct-btn-primary" @onclick="ExportPersonalBackupAsync">
-                ⬇ Export personal.sqlite
+            <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:6px;" @onclick="SaveProfileAsync">
+                Save Profile &amp; Units
             </button>
-
-            <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
-                ⬆ Restore personal.sqlite
-                <InputFile OnChange="ImportPersonalBackupAsync" accept=".sqlite,.db" style="display:none;" />
-            </label>
         </div>
-    </div>
+    }
+    else if (_section == SettingsSection.MealSlots)
+    {
+        <div class="ct-card">
+            <div class="ct-muted" style="margin-bottom:10px;">
+                Customize and reorder when you log food (e.g. Breakfast, Lunch, Dinner, Snacks, Pre-Workout).
+            </div>
 
-    <div class="ct-card">
-        <h2 class="ct-card-title" style="margin-bottom:8px;">🥗 Shareable Food Catalog (foods.sqlite)</h2>
-        <div class="ct-muted" style="margin-bottom:12px;">
-            Contains only your food library (searched, scanned, and custom foods) with <strong>zero personal data</strong> — ready to export, share, or merge into a hosted database later.
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+                @for (var i = 0; i < _slots.Count; i++)
+                {
+                    var idx = i;
+                    var slot = _slots[idx];
+                    <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
+                        <div>
+                            <span style="margin-right:6px;">@slot.Icon</span>
+                            <strong>@slot.Name</strong>
+                        </div>
+                        <div style="display:flex; gap:2px; align-items:center;">
+                            <button class="ct-icon-btn" title="Move up" disabled="@(idx == 0)" @onclick="() => MoveSlotAsync(idx, -1)">▲</button>
+                            <button class="ct-icon-btn" title="Move down" disabled="@(idx == _slots.Count - 1)" @onclick="() => MoveSlotAsync(idx, 1)">▼</button>
+                            <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)">🗑️</button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <input class="ct-input" style="width:60px; text-align:center;" @bind="_newSlotIcon" />
+                <input class="ct-input" placeholder="New meal time (e.g. Pre-Workout)" @bind="_newSlotName" />
+                <button class="ct-btn ct-btn-soft" @onclick="AddSlotAsync">Add</button>
+            </div>
+        </div>
+    }
+    else if (_section == SettingsSection.Backups)
+    {
+        <div class="ct-card">
+            <h2 class="ct-card-title" style="margin-bottom:8px;">🔒 Private Personal Data (personal.sqlite)</h2>
+            <div class="ct-muted" style="margin-bottom:12px;">
+                Contains your diary logs, body measurements, water logs, saved meals, and goals. Kept strictly private on this device.
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="ct-btn ct-btn-primary" @onclick="ExportPersonalBackupAsync">
+                    ⬇ Export personal.sqlite
+                </button>
+
+                <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
+                    ⬆ Restore personal.sqlite
+                    <InputFile OnChange="ImportPersonalBackupAsync" accept=".sqlite,.db" style="display:none;" />
+                </label>
+            </div>
         </div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="ct-btn ct-btn-soft" @onclick="ExportFoodsBackupAsync">
-                ⬇ Export foods.sqlite
-            </button>
+        <div class="ct-card">
+            <h2 class="ct-card-title" style="margin-bottom:8px;">🥗 Shareable Food Catalog (foods.sqlite)</h2>
+            <div class="ct-muted" style="margin-bottom:12px;">
+                Contains only your food library (searched, scanned, and custom foods) with <strong>zero personal data</strong> — ready to export, share, or merge into a hosted database later.
+            </div>
 
-            <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
-                ⬆ Import / Restore foods.sqlite
-                <InputFile OnChange="ImportFoodsBackupAsync" accept=".sqlite,.db" style="display:none;" />
-            </label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="ct-btn ct-btn-soft" @onclick="ExportFoodsBackupAsync">
+                    ⬇ Export foods.sqlite
+                </button>
+
+                <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
+                    ⬆ Import / Restore foods.sqlite
+                    <InputFile OnChange="ImportFoodsBackupAsync" accept=".sqlite,.db" style="display:none;" />
+                </label>
+            </div>
         </div>
-    </div>
+    }
 </div>
 
 @code {
+    private enum SettingsSection
+    {
+        Menu,
+        Appearance,
+        GoalPlanner,
+        NutritionGoals,
+        ProfileUnits,
+        MealSlots,
+        Backups
+    }
+
+    private SettingsSection _section = SettingsSection.Menu;
     private UserProfile _profile = new();
     private List<MealSlot> _slots = new();
     private double? _latestWeightKg;
@@ -252,6 +378,18 @@
     private string _newSlotName = string.Empty;
     private string _newSlotIcon = "🥪";
     private string? _status;
+
+    private static readonly (ColorScheme Scheme, string Label, string Hex)[] _colorOptions =
+    {
+        (ColorScheme.RoyalBlue, "Royal Blue", "#2563eb"),
+        (ColorScheme.Green, "Green", "#16a34a"),
+        (ColorScheme.Purple, "Purple", "#7c3aed"),
+        (ColorScheme.Orange, "Orange", "#ea580c"),
+        (ColorScheme.Red, "Red", "#dc2626"),
+        (ColorScheme.Teal, "Teal", "#0d9488"),
+        (ColorScheme.Rose, "Rose", "#db2777"),
+        (ColorScheme.Indigo, "Indigo", "#4f46e5")
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -266,6 +404,40 @@
         _latestWeightKg = latest?.WeightKg;
         SyncGoalWeightInput();
     }
+
+    private void OpenSection(SettingsSection section)
+    {
+        _status = null;
+        _section = section;
+    }
+
+    private void BackToMenu()
+    {
+        _status = null;
+        _section = SettingsSection.Menu;
+    }
+
+    private static string GetSectionTitle(SettingsSection section) => section switch
+    {
+        SettingsSection.Appearance => "Appearance",
+        SettingsSection.GoalPlanner => "Goal Weight & Planner",
+        SettingsSection.NutritionGoals => "Nutrition & Water Goals",
+        SettingsSection.ProfileUnits => "Profile & Units",
+        SettingsSection.MealSlots => "Meal Times & Slots",
+        SettingsSection.Backups => "Data & Backups",
+        _ => "Settings"
+    };
+
+    private static string GetSchemeLabel(ColorScheme scheme) =>
+        _colorOptions.FirstOrDefault(o => o.Scheme == scheme).Label ?? "Royal Blue";
+
+    private static string FormatUnitLabel(UnitSystem unit) => unit switch
+    {
+        UnitSystem.Metric => "Metric (kg, cm)",
+        UnitSystem.UkImperial => "UK Imperial",
+        UnitSystem.UsImperial => "US Imperial",
+        _ => "Metric"
+    };
 
     private void SyncGoalWeightInput()
     {
@@ -283,7 +455,6 @@
     {
         if (Enum.TryParse<UnitSystem>(e.Value?.ToString(), out var next))
         {
-            // Persist current input back to kg before converting display
             if (_goalWeightInput.HasValue)
             {
                 _profile.GoalWeightKg = _profile.UnitSystem == UnitSystem.Metric
@@ -294,18 +465,6 @@
             SyncGoalWeightInput();
         }
     }
-
-    private static readonly (ColorScheme Scheme, string Label, string Hex)[] _colorOptions =
-    {
-        (ColorScheme.RoyalBlue, "Royal Blue", "#2563eb"),
-        (ColorScheme.Green, "Green", "#16a34a"),
-        (ColorScheme.Purple, "Purple", "#7c3aed"),
-        (ColorScheme.Orange, "Orange", "#ea580c"),
-        (ColorScheme.Red, "Red", "#dc2626"),
-        (ColorScheme.Teal, "Teal", "#0d9488"),
-        (ColorScheme.Rose, "Rose", "#db2777"),
-        (ColorScheme.Indigo, "Indigo", "#4f46e5")
-    };
 
     private async Task SetThemeAsync(ThemeMode mode)
     {
@@ -342,7 +501,7 @@
         }
 
         await ProfileRepo.SaveAsync(_profile);
-        _status = "Goals and preferences saved!";
+        _status = "Saved!";
     }
 
     private async Task MoveSlotAsync(int index, int delta)
