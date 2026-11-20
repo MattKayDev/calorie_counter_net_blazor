@@ -34,12 +34,14 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
 
         try
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(6));
             var url = $"https://world.openfoodfacts.org/api/v2/product/{Uri.EscapeDataString(clean)}.json?fields={OffFields}";
-            using var resp = await _http.GetAsync(url, ct);
+            using var resp = await _http.GetAsync(url, timeoutCts.Token);
             if (!resp.IsSuccessStatusCode || !IsJson(resp)) return null;
 
-            await using var stream = await resp.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            await using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: timeoutCts.Token);
             var root = doc.RootElement;
 
             if (root.TryGetProperty("status", out var statusEl) && statusEl.ValueKind == JsonValueKind.Number && statusEl.GetInt32() == 0)
@@ -98,13 +100,15 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
     {
         try
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(4));
             var slug = query.ToLowerInvariant().Replace(' ', '-');
             var url = $"https://world.openfoodfacts.org/api/v2/search?brands_tags={Uri.EscapeDataString(slug)}&page_size={pageSize}&fields={OffFields}";
-            using var resp = await _http.GetAsync(url, ct);
+            using var resp = await _http.GetAsync(url, timeoutCts.Token);
             if (!resp.IsSuccessStatusCode || !IsJson(resp)) return new List<FoodItem>();
 
-            await using var stream = await resp.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            await using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: timeoutCts.Token);
             return ParseOffProductList(doc.RootElement);
         }
         catch
@@ -117,12 +121,14 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
     {
         try
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(2.5));
             var url = $"https://world.openfoodfacts.org/cgi/search.pl?search_terms={Uri.EscapeDataString(query)}&search_simple=1&action=process&json=1&page_size={pageSize}&fields={OffFields}";
-            using var resp = await _http.GetAsync(url, ct);
+            using var resp = await _http.GetAsync(url, timeoutCts.Token);
             if (!resp.IsSuccessStatusCode || !IsJson(resp)) return new List<FoodItem>();
 
-            await using var stream = await resp.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            await using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: timeoutCts.Token);
             return ParseOffProductList(doc.RootElement);
         }
         catch
@@ -135,12 +141,14 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
     {
         try
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
             var url = $"https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&query={Uri.EscapeDataString(query)}&pageSize={pageSize}";
-            using var resp = await _http.GetAsync(url, ct);
+            using var resp = await _http.GetAsync(url, timeoutCts.Token);
             if (!resp.IsSuccessStatusCode || !IsJson(resp)) return new List<FoodItem>();
 
-            await using var stream = await resp.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            await using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: timeoutCts.Token);
             return ParseUsdaResponse(doc.RootElement);
         }
         catch

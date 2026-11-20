@@ -66,7 +66,7 @@ public sealed class FoodLookupService : IFoodLookupService
             return localResults.ToList();
 
         // Persist everything returned from API into local SQLite so future searches rely less on the API
-        await _foodRepo.UpsertManyAsync(apiResults, ct);
+        await _foodRepo.UpsertManyAsync(apiResults, CancellationToken.None);
 
         // Merge local + newly cached API items without duplicates
         var seenIds = new HashSet<Guid>();

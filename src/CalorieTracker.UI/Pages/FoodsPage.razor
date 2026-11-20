@@ -2,6 +2,7 @@
 @inject IFoodItemRepository FoodRepo
 @inject IFoodLookupService FoodLookup
 @inject IMealRepository MealRepo
+@implements IDisposable
 
 <div class="ct-topbar">
     <div class="ct-topbar-row">
@@ -32,14 +33,15 @@
         <div class="ct-card">
             <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <input class="ct-input" placeholder="Search food name or brand..."
-                       value="@_query" @oninput="OnSearchInput" />
+                       value="@_query" @oninput="OnSearchInput" @onchange="OnSearchChange" />
                 <button class="ct-btn ct-btn-primary" @onclick="OpenNewFoodModal">Add</button>
             </div>
 
-            @if (_isEnriching)
+            @if (_isSearching || _isLookingUpBarcode)
             {
-                <div class="ct-muted" style="margin-bottom:8px;">
-                    Searching for more matches...
+                <div class="ct-loading-pill" role="status" aria-live="polite">
+                    <span class="ct-spinner" aria-hidden="true"></span>
+                    <span>@_loadingText</span>
                 </div>
             }
 
@@ -49,9 +51,25 @@
 
             @if (_foods.Count == 0)
             {
-                <div class="ct-muted" style="text-align:center; padding:24px 0;">
-                    Type a food name, tap <AppIcon Name="@AppIcons.Barcode" Size="15" /> to scan a barcode, or tap <strong>Add</strong> to create a custom food.
-                </div>
+                @if (_isSearching || _isLookingUpBarcode)
+                {
+                    <div class="ct-muted" style="text-align:center; padding:24px 0; display:flex; flex-direction:column; align-items:center; gap:10px;">
+                        <span class="ct-spinner ct-spinner-lg" aria-hidden="true"></span>
+                        <span>Searching foods...</span>
+                    </div>
+                }
+                else if (_query.Trim().Length >= 2)
+                {
+                    <div class="ct-muted" style="text-align:center; padding:24px 0;">
+                        No matching foods found for &ldquo;@_query.Trim()&rdquo;. Tap <strong>Add</strong> to create a custom food.
+                    </div>
+                }
+                else
+                {
+                    <div class="ct-muted" style="text-align:center; padding:24px 0;">
+                        Type a food name, tap <AppIcon Name="@AppIcons.Barcode" Size="15" /> to scan a barcode, or tap <strong>Add</strong> to create a custom food.
+                    </div>
+                }
             }
             else
             {
@@ -272,7 +290,10 @@
     private List<FoodItem> _foods = new();
     private List<FoodItem> _allLocalFoods = new();
     private List<Meal> _meals = new();
-    private bool _isEnriching;
+    private bool _isSearching;
+    private bool _isLookingUpBarcode;
+    private string _loadingText = "Searching...";
+    private int _searchVersion;
     private bool _scannerOpen;
     private bool _foodModalOpen;
     private bool _mealModalOpen;
@@ -298,43 +319,71 @@
         _meals = await MealRepo.GetAllAsync();
     }
 
-    private async Task OnSearchInput(ChangeEventArgs e)
+    private Task OnSearchInput(ChangeEventArgs e)
     {
-        _query = e.Value?.ToString() ?? string.Empty;
+        var query = e.Value?.ToString() ?? string.Empty;
+        _query = query;
         _notice = null;
+        return RunSearchAsync(query);
+    }
 
+    private Task OnSearchChange(ChangeEventArgs e)
+    {
+        var query = e.Value?.ToString() ?? string.Empty;
+        if (string.Equals(query, _query, StringComparison.Ordinal))
+            return Task.CompletedTask;
+
+        _query = query;
+        _notice = null;
+        return RunSearchAsync(query);
+    }
+
+    private async Task RunSearchAsync(string query)
+    {
+        var version = ++_searchVersion;
         _searchCts?.Cancel();
+        _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         var ct = _searchCts.Token;
 
-        var local = await FoodLookup.SearchLocalAsync(_query, 50, ct);
-        _foods = local;
-        StateHasChanged();
-
-        if (_query.Trim().Length < 2)
-        {
-            _isEnriching = false;
-            return;
-        }
-
         try
         {
-            _isEnriching = true;
+            _isSearching = true;
+            _loadingText = "Searching local database...";
             StateHasChanged();
-            await Task.Delay(500, ct);
-            var merged = await FoodLookup.EnrichFromApiAndMergeAsync(_query, local, ct);
-            if (!ct.IsCancellationRequested)
+
+            var local = await FoodLookup.SearchLocalAsync(query, 50, ct);
+            if (version != _searchVersion || ct.IsCancellationRequested) return;
+
+            _foods = local;
+            if (query.Trim().Length < 2)
             {
-                _foods = merged;
-                _allLocalFoods = await FoodRepo.GetAllAsync(200, ct);
+                _isSearching = false;
+                StateHasChanged();
+                return;
             }
+
+            _loadingText = "Searching online for more matches...";
+            StateHasChanged();
+
+            await Task.Delay(350, ct);
+            if (version != _searchVersion || ct.IsCancellationRequested) return;
+
+            var merged = await FoodLookup.EnrichFromApiAndMergeAsync(query, local, ct);
+            if (version != _searchVersion || ct.IsCancellationRequested) return;
+
+            _foods = merged;
+            _allLocalFoods = await FoodRepo.GetAllAsync(200, CancellationToken.None);
         }
-        catch (TaskCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            // superseded by newer keystroke
+        }
         finally
         {
-            if (!ct.IsCancellationRequested)
+            if (version == _searchVersion)
             {
-                _isEnriching = false;
+                _isSearching = false;
                 StateHasChanged();
             }
         }
@@ -342,20 +391,33 @@
 
     private async Task HandleBarcodeScannedAsync(string barcode)
     {
-        var lookup = await FoodLookup.LookupByBarcodeAsync(barcode);
-        if (lookup.Item is not null)
+        _isLookingUpBarcode = true;
+        _loadingText = $"Looking up barcode {barcode}...";
+        _notice = null;
+        StateHasChanged();
+
+        try
         {
-            _notice = lookup.FoundLocally
-                ? $"Found \"{lookup.Item.Name}\" in local SQLite database!"
-                : $"Found \"{lookup.Item.Name}\" via Open Food Facts and saved to local SQLite!";
-            _query = lookup.Item.Name;
-            await ReloadAsync();
+            var lookup = await FoodLookup.LookupByBarcodeAsync(barcode);
+            if (lookup.Item is not null)
+            {
+                _notice = lookup.FoundLocally
+                    ? $"Found \"{lookup.Item.Name}\" in local SQLite database!"
+                    : $"Found \"{lookup.Item.Name}\" online and saved to local SQLite!";
+                _query = lookup.Item.Name;
+                await ReloadAsync();
+            }
+            else
+            {
+                _notice = $"Barcode {barcode} not found. Opening Custom Food form with barcode pre-filled.";
+                _editFood = new FoodItem { Barcode = barcode, Source = FoodSource.Custom };
+                _foodModalOpen = true;
+            }
         }
-        else
+        finally
         {
-            _notice = $"Barcode {barcode} not found. Opening Custom Food form with barcode pre-filled.";
-            _editFood = new FoodItem { Barcode = barcode, Source = FoodSource.Custom };
-            _foodModalOpen = true;
+            _isLookingUpBarcode = false;
+            StateHasChanged();
         }
     }
 
@@ -426,5 +488,11 @@
     {
         await MealRepo.SoftDeleteAsync(id);
         await ReloadAsync();
+    }
+
+    public void Dispose()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
     }
 }

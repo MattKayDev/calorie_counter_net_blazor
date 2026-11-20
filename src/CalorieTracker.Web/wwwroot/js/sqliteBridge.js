@@ -6,6 +6,41 @@
     let SQL = null;
     const dbs = {};
     const initPromises = {};
+    const saveTimers = {};
+    const dirtyDbs = new Set();
+
+    async function flushSave(name) {
+        if (saveTimers[name]) {
+            clearTimeout(saveTimers[name]);
+            delete saveTimers[name];
+        }
+        dirtyDbs.delete(name);
+        if (!dbs[name]) return;
+        await saveToIdb(storageKey(name), dbs[name].export());
+    }
+
+    function scheduleSave(name) {
+        dirtyDbs.add(name);
+        if (saveTimers[name]) {
+            clearTimeout(saveTimers[name]);
+        }
+        saveTimers[name] = setTimeout(() => {
+            flushSave(name).catch(() => { });
+        }, 120);
+    }
+
+    function flushAllDirty() {
+        for (const name of Array.from(dirtyDbs)) {
+            flushSave(name).catch(() => { });
+        }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            flushAllDirty();
+        }
+    });
+    window.addEventListener('pagehide', flushAllDirty);
 
     function openIdb() {
         return new Promise((resolve, reject) => {
@@ -116,7 +151,7 @@
             } finally {
                 stmt.free();
             }
-            await saveToIdb(storageKey(name), db.export());
+            scheduleSave(name);
         },
 
         query: async function (dbName, sql, params) {
@@ -150,7 +185,7 @@
             const nextDb = new SQL.Database(bytes);
             if (dbs[name]) dbs[name].close();
             dbs[name] = nextDb;
-            await saveToIdb(storageKey(name), nextDb.export());
+            await flushSave(name);
         }
     };
 })();

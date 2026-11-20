@@ -1034,3 +1034,38 @@ html, body {
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
     z-index: 45;
 }
+
+/* Searching / Thinking Throbber */
+.ct-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2.5px solid var(--ct-track);
+    border-top-color: var(--ct-green);
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    animation: ct-spin 0.7s linear infinite;
+}
+
+.ct-spinner-lg {
+    width: 26px;
+    height: 26px;
+    border-width: 3px;
+}
+
+.ct-loading-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--ct-surface-muted);
+    color: var(--ct-text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+@keyframes ct-spin {
+    to { transform: rotate(360deg); }
+}
