@@ -480,13 +480,26 @@
     private async Task CheckForUpdatesAsync()
     {
         _checkingUpdate = true;
-        _updateMessage = null;
+        _updateMessage = "Checking for updates...";
         StateHasChanged();
 
-        var result = await AppUpdate.CheckForUpdateAsync();
-        _updateAvailable = result.UpdateAvailable;
-        _updateMessage = result.Message;
-        _checkingUpdate = false;
+        try
+        {
+            var result = await AppUpdate.CheckForUpdateAsync();
+            _updateAvailable = result.UpdateAvailable;
+            _updateMessage = string.IsNullOrWhiteSpace(result.Message)
+                ? (_updateAvailable ? "A new version is ready to install!" : "You are up to date with the latest version.")
+                : result.Message;
+        }
+        catch (Exception ex)
+        {
+            _updateMessage = $"Could not check for updates: {ex.Message}";
+        }
+        finally
+        {
+            _checkingUpdate = false;
+            StateHasChanged();
+        }
     }
 
     private Task ApplyUpdateAsync() => AppUpdate.ApplyUpdateAsync();

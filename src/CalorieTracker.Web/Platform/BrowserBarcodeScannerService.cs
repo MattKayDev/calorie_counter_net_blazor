@@ -110,13 +110,6 @@ public sealed class BrowserAppUpdateService : IAppUpdateService, IDisposable
         _js = js;
     }
 
-    private sealed class JsUpdateCheckDto
-    {
-        public bool UpdateAvailable { get; set; }
-        public bool IsSupported { get; set; }
-        public string Message { get; set; } = string.Empty;
-    }
-
     public async Task StartWatchingAsync()
     {
         if (_watching) return;
@@ -145,13 +138,26 @@ public sealed class BrowserAppUpdateService : IAppUpdateService, IDisposable
 
     public async Task<AppUpdateCheckResult> CheckForUpdateAsync()
     {
-        var dto = await _js.InvokeAsync<JsUpdateCheckDto>("pwaUpdateBridge.checkForUpdate");
-        if (dto.UpdateAvailable && !IsUpdateAvailable)
+        try
         {
-            IsUpdateAvailable = true;
-            UpdateAvailableChanged?.Invoke();
+            var json = await _js.InvokeAsync<System.Text.Json.JsonElement>("pwaUpdateBridge.checkForUpdate");
+            var updateAvailable = json.TryGetProperty("updateAvailable", out var ua) && ua.ValueKind == System.Text.Json.JsonValueKind.True;
+            var isSupported = json.TryGetProperty("isSupported", out var sup) && sup.ValueKind == System.Text.Json.JsonValueKind.True;
+            var message = json.TryGetProperty("message", out var msg) && msg.ValueKind == System.Text.Json.JsonValueKind.String
+                ? msg.GetString() ?? "Checked for updates."
+                : "Checked for updates.";
+
+            if (updateAvailable && !IsUpdateAvailable)
+            {
+                IsUpdateAvailable = true;
+                UpdateAvailableChanged?.Invoke();
+            }
+            return new AppUpdateCheckResult(updateAvailable, isSupported, message);
         }
-        return new AppUpdateCheckResult(dto.UpdateAvailable, dto.IsSupported, dto.Message);
+        catch (Exception ex)
+        {
+            return new AppUpdateCheckResult(false, false, $"Update check failed: {ex.Message}");
+        }
     }
 
     public async Task ApplyUpdateAsync()
