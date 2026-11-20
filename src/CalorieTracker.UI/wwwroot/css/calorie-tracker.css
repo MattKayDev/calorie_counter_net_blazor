@@ -232,7 +232,7 @@ html, body {
     border-radius: var(--ct-radius);
     padding: 16px;
     box-shadow: var(--ct-shadow);
-    border: 1px solid rgba(226, 232, 240, 0.7);
+    border: none;
 }
 
 .ct-card-header {
@@ -739,9 +739,9 @@ html, body {
     height: 34px;
     border-radius: 10px;
     border: none;
-    background: rgba(255, 255, 255, 0.18);
+    background: transparent;
     color: #fff;
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -751,7 +751,7 @@ html, body {
 }
 
 .ct-cog-btn:hover {
-    background: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.14);
 }
 
 .ct-nav-item {
