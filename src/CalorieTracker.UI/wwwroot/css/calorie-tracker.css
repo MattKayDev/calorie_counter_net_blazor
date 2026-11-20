@@ -228,6 +228,40 @@ html, body {
     gap: 14px;
 }
 
+/* Fixed-summary Diary layout: only meal times scroll */
+.ct-diary-layout {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
+    margin-bottom: -84px;
+    overflow: hidden;
+}
+
+.ct-diary-layout .ct-topbar {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.ct-diary-fixed {
+    flex-shrink: 0;
+    padding: 12px 14px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ct-diary-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 14px 88px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
 .ct-card {
     background: var(--ct-surface);
     border-radius: var(--ct-radius);

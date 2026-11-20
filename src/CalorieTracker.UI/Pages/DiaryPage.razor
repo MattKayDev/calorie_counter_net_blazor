@@ -5,6 +5,7 @@
 @inject IWaterLogRepository WaterRepo
 @inject DiaryService Diary
 
+<div class="ct-diary-layout">
 <div class="ct-topbar">
     <div class="ct-topbar-row">
         <div class="ct-topbar-left">
@@ -26,21 +27,23 @@
     </div>
 </div>
 
-<div class="ct-page">
-    @if (!string.IsNullOrWhiteSpace(_toast))
-    {
-        <div class="ct-alert ct-alert-success">@_toast</div>
-    }
-
-    @if (_loading)
-    {
+@if (_loading)
+{
+    <div class="ct-diary-fixed">
         <div class="ct-card" style="text-align:center; padding:32px;">
             <div class="ct-muted">Loading your SQLite diary...</div>
         </div>
-    }
-    else
-    {
-        <!-- Daily Calorie Ring & Macro Summary Card -->
+    </div>
+}
+else
+{
+    <!-- Fixed Daily Calorie Ring & Macro Summary -->
+    <div class="ct-diary-fixed">
+        @if (!string.IsNullOrWhiteSpace(_toast))
+        {
+            <div class="ct-alert ct-alert-success">@_toast</div>
+        }
+
         <div class="ct-card">
             <div class="ct-summary-grid">
                 <div class="ct-stat-col">
@@ -83,7 +86,10 @@
                 </div>
             }
         </div>
+    </div>
 
+    <!-- Scrollable Water & Meal Times Area -->
+    <div class="ct-diary-scroll">
         <!-- Daily Water Tracker Card -->
         <div class="ct-card" style="padding:13px 16px;">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
@@ -153,7 +159,8 @@
                 }
             </div>
         }
-    }
+    </div>
+}
 </div>
 
 <!-- Edit Logged Entry Modal -->
