@@ -6,9 +6,17 @@ A free, local-first, mobile-friendly calorie, nutrient, and body-metrics tracker
 
 ## Screenshots
 
-| Calorie Diary | Body & Progress | Settings | Dark Mode & Themes |
-| :---: | :---: | :---: | :---: |
-| ![Calorie Diary](docs/screenshots/diary.png) | ![Body & Progress](docs/screenshots/progress.png) | ![Settings](docs/screenshots/settings.png) | ![Dark Mode & Themes](docs/screenshots/appearance-dark.png) |
+### Calorie Diary
+<img src="docs/screenshots/diary.png" alt="Calorie Diary" width="360" />
+
+### Body & Progress
+<img src="docs/screenshots/progress.png" alt="Body & Progress" width="360" />
+
+### Settings
+<img src="docs/screenshots/settings.png" alt="Settings" width="360" />
+
+### Dark Mode & Themes
+<img src="docs/screenshots/appearance-dark.png" alt="Dark Mode & Themes" width="360" />
 
 ## Features
 - **Daily Calorie & Nutrient Diary:** Track calories, protein, carbs, fat, saturated fat, sugars, fibre, and salt with a daily calorie ring, macro progress bars, quick-log floating `+` button, in-place entry editing, and 1-tap **Copy Yesterday**.
