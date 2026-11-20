@@ -7,10 +7,22 @@
     <div class="ct-modal-backdrop" @onclick="Close">
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
-                <strong>Add to @MealSlotName</strong>
+                <strong>Add to @ActiveSlotName</strong>
                 <button class="ct-icon-btn" @onclick="Close">✕</button>
             </div>
             <div class="ct-modal-body">
+                @if (MealSlots.Count > 0)
+                {
+                    <div class="ct-field" style="margin-bottom:12px;">
+                        <label class="ct-label">Meal Time</label>
+                        <select class="ct-select" @bind="_selectedSlotId">
+                            @foreach (var s in MealSlots)
+                            {
+                                <option value="@s.Id">@s.Icon @s.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
                 @if (_selectedFood is not null)
                 {
                     <div>
@@ -66,7 +78,7 @@
                         </div>
 
                         <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:12px;" @onclick="ConfirmLogFoodAsync">
-                            Add @_grams.ToString("0")g to @MealSlotName
+                            Add @_grams.ToString("0")g to @ActiveSlotName
                         </button>
                     </div>
                 }
@@ -169,8 +181,14 @@
     [Parameter] public DateOnly Date { get; set; }
     [Parameter] public Guid MealSlotId { get; set; }
     [Parameter] public string MealSlotName { get; set; } = string.Empty;
+    [Parameter] public List<MealSlot> MealSlots { get; set; } = new();
     [Parameter] public EventCallback OnLogged { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    private Guid _selectedSlotId;
+    private string ActiveSlotName =>
+        MealSlots.FirstOrDefault(s => s.Id == _selectedSlotId)?.Name
+        ?? (string.IsNullOrWhiteSpace(MealSlotName) ? "Diary" : MealSlotName);
 
     private int _tab;
     private string _searchQuery = string.Empty;
@@ -188,6 +206,9 @@
     {
         if (IsOpen && !_wasOpen)
         {
+            _selectedSlotId = MealSlotId != Guid.Empty
+                ? MealSlotId
+                : (MealSlots.FirstOrDefault()?.Id ?? Guid.Empty);
             _selectedFood = null;
             _statusMessage = null;
             _searchQuery = string.Empty;
@@ -270,15 +291,16 @@
 
     private async Task ConfirmLogFoodAsync()
     {
-        if (_selectedFood is null || _grams <= 0) return;
-        await Diary.LogFoodItemAsync(Date, MealSlotId, _selectedFood, _grams);
+        if (_selectedFood is null || _grams <= 0 || _selectedSlotId == Guid.Empty) return;
+        await Diary.LogFoodItemAsync(Date, _selectedSlotId, _selectedFood, _grams);
         await OnLogged.InvokeAsync();
         await Close();
     }
 
     private async Task LogMealAsync(Meal meal)
     {
-        await Diary.LogMealAsync(Date, MealSlotId, meal, 1);
+        if (_selectedSlotId == Guid.Empty) return;
+        await Diary.LogMealAsync(Date, _selectedSlotId, meal, 1);
         await OnLogged.InvokeAsync();
         await Close();
     }

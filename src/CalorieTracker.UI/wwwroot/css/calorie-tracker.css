@@ -407,6 +407,20 @@ html, body {
     padding: 13px 14px;
     background: var(--ct-surface);
     cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.ct-slot-head:hover {
+    background: var(--ct-surface-muted);
+}
+
+.ct-slot-plus {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--ct-green);
+    padding: 0 4px;
+    user-select: none;
 }
 
 .ct-slot-left {
@@ -880,6 +894,38 @@ html, body {
     background: #0f172a;
     border-radius: 12px;
     overflow: hidden;
+}
+
+/* Floating Action Button (Diary only) */
+.ct-fab {
+    position: fixed;
+    right: max(18px, calc(50% - 242px));
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    border: none;
+    background: var(--ct-topbar-bg);
+    color: #ffffff;
+    font-size: 1.9rem;
+    font-weight: 400;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28);
+    cursor: pointer;
+    z-index: 40;
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.ct-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.34);
+}
+
+.ct-fab:active {
+    transform: scale(0.95);
 }
 
 /* Floating Update Ready Notification Banner */

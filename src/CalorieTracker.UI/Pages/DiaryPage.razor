@@ -115,7 +115,7 @@
             var slotKcal = slotEntries.Sum(e => e.CaloriesKcal);
 
             <div class="ct-card ct-slot-card">
-                <div class="ct-slot-head">
+                <div class="ct-slot-head" role="button" tabindex="0" @onclick="() => OpenAddModal(slot)">
                     <div class="ct-slot-left">
                         <div class="ct-slot-icon">@slot.Icon</div>
                         <div>
@@ -125,9 +125,7 @@
                             </div>
                         </div>
                     </div>
-                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => OpenAddModal(slot)">
-                        + Add
-                    </button>
+                    <span class="ct-slot-plus" aria-hidden="true">+</span>
                 </div>
 
                 @if (slotEntries.Count > 0)
@@ -215,10 +213,18 @@
     </div>
 }
 
+@if (!_loading && _slots.Count > 0)
+{
+    <button class="ct-fab" title="Log food" aria-label="Log food" @onclick="OpenQuickLogModal">
+        +
+    </button>
+}
+
 <AddFoodModal IsOpen="_addModalOpen"
               Date="_selectedDate"
               MealSlotId="_activeSlotId"
               MealSlotName="@_activeSlotName"
+              MealSlots="_slots"
               OnLogged="LoadDayAsync"
               OnClose="() => _addModalOpen = false" />
 
@@ -322,6 +328,12 @@
         _activeSlotId = slot.Id;
         _activeSlotName = slot.Name;
         _addModalOpen = true;
+    }
+
+    private void OpenQuickLogModal()
+    {
+        if (_slots.Count == 0) return;
+        OpenAddModal(_slots[0]);
     }
 
     private async Task DeleteEntryAsync(Guid id)
