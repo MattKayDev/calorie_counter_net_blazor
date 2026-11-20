@@ -435,14 +435,13 @@ html, body {
 }
 
 .ct-slot-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: var(--ct-green-light);
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    color: var(--ct-green);
+    flex-shrink: 0;
 }
 
 .ct-slot-name {
@@ -731,14 +730,12 @@ html, body {
 }
 
 .ct-menu-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: var(--ct-green-light);
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    color: var(--ct-green);
     flex-shrink: 0;
 }
 

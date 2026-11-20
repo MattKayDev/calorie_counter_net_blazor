@@ -8,21 +8,21 @@
 <div class="ct-topbar">
     <div class="ct-topbar-row">
         <div class="ct-topbar-left">
-            <a class="ct-cog-btn" href="settings" title="Settings" aria-label="Settings">⚙️</a>
+            <a class="ct-cog-btn" href="settings" title="Settings" aria-label="Settings"><AppIcon Name="settings" Size="20" /></a>
             <div class="ct-brand">Calorie Diary</div>
         </div>
         <button class="ct-datebtn" style="padding:6px 8px; font-size:0.84rem;"
                 @onclick="() => _calendarOpen = true">
-            📅 History
+            <AppIcon Name="calendar" Size="16" /> History
         </button>
     </div>
 
     <div class="ct-datebar">
-        <button class="ct-datebtn" @onclick="PrevDay">◀</button>
+        <button class="ct-datebtn" @onclick="PrevDay" aria-label="Previous day"><AppIcon Name="chevron-left" Size="18" /></button>
         <button class="ct-datebtn" @onclick="() => _calendarOpen = true">
             @FormatDateHeading(_selectedDate)
         </button>
-        <button class="ct-datebtn" @onclick="NextDay">▶</button>
+        <button class="ct-datebtn" @onclick="NextDay" aria-label="Next day"><AppIcon Name="chevron-right" Size="18" /></button>
     </div>
 </div>
 
@@ -65,10 +65,11 @@
 
             <div style="display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
                 <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
-                    @(_showAllNutrients ? "Hide nutrients ▲" : "All nutrients ▼")
+                    @(_showAllNutrients ? "Hide nutrients" : "All nutrients")
+                    <AppIcon Name="@(_showAllNutrients ? "chevron-up" : "chevron-down")" Size="14" />
                 </button>
                 <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="CopyYesterdayAsync">
-                    📋 Copy Yesterday
+                    <AppIcon Name="copy" Size="14" /> Copy Yesterday
                 </button>
             </div>
 
@@ -86,10 +87,11 @@
         <!-- Daily Water Tracker Card -->
         <div class="ct-card" style="padding:13px 16px;">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-                <div>
-                    <strong style="font-size:0.94rem;">💧 Water</strong>
-                    <span class="ct-muted" style="margin-left:6px;">
-                        @_waterLog.AmountMl ml / @_profile.DailyWaterGoalMl ml (@((_waterLog.AmountMl / 250.0).ToString("0.#")) glasses)
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="color:var(--ct-green);"><AppIcon Name="water" Size="17" /></span>
+                    <strong style="font-size:0.94rem;">Water</strong>
+                    <span class="ct-muted">
+                        @_waterLog.AmountMl / @_profile.DailyWaterGoalMl ml
                     </span>
                 </div>
                 <div style="display:flex; gap:4px;">
@@ -117,7 +119,7 @@
             <div class="ct-card ct-slot-card">
                 <div class="ct-slot-head" role="button" tabindex="0" @onclick="() => OpenAddModal(slot)">
                     <div class="ct-slot-left">
-                        <div class="ct-slot-icon">@slot.Icon</div>
+                        <div class="ct-slot-icon"><AppIcon Name="@slot.Icon" Size="20" /></div>
                         <div>
                             <div class="ct-slot-name">@slot.Name</div>
                             <div class="ct-slot-kcal">
@@ -142,8 +144,8 @@
                                 </div>
                                 <div class="ct-entry-right">
                                     <span class="ct-entry-kcal">@entry.CaloriesKcal.ToString("0") kcal</span>
-                                    <button class="ct-icon-btn" title="Edit quantity" @onclick="() => OpenEditEntryModal(entry)">✏️</button>
-                                    <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)">🗑️</button>
+                                    <button class="ct-icon-btn" title="Edit quantity" @onclick="() => OpenEditEntryModal(entry)"><AppIcon Name="edit" Size="16" /></button>
+                                    <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)"><AppIcon Name="trash" Size="16" /></button>
                                 </div>
                             </div>
                         }
@@ -161,7 +163,7 @@
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
                 <strong>Edit Logged Item</strong>
-                <button class="ct-icon-btn" @onclick="() => _editingEntry = null">✕</button>
+                <button class="ct-icon-btn" @onclick="() => _editingEntry = null"><AppIcon Name="close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 <div style="font-weight:700; font-size:1rem; margin-bottom:10px;">@_editingEntry.NameSnapshot</div>
@@ -176,7 +178,7 @@
                         <select class="ct-select" @bind="_editSlotId">
                             @foreach (var s in _slots)
                             {
-                                <option value="@s.Id">@s.Icon @s.Name</option>
+                                <option value="@s.Id">@s.Name</option>
                             }
                         </select>
                     </div>

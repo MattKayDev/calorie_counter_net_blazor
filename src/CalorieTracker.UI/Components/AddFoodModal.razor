@@ -8,7 +8,7 @@
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
                 <strong>Add to @ActiveSlotName</strong>
-                <button class="ct-icon-btn" @onclick="Close">✕</button>
+                <button class="ct-icon-btn" @onclick="Close"><AppIcon Name="close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 @if (MealSlots.Count > 0)
@@ -18,7 +18,7 @@
                         <select class="ct-select" @bind="_selectedSlotId">
                             @foreach (var s in MealSlots)
                             {
-                                <option value="@s.Id">@s.Icon @s.Name</option>
+                                <option value="@s.Id">@s.Name</option>
                             }
                         </select>
                     </div>

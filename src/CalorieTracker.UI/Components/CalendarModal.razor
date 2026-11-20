@@ -5,11 +5,11 @@
     <div class="ct-modal-backdrop" @onclick="Close">
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
-                <button class="ct-icon-btn" @onclick="PrevMonth">◀</button>
+                <button class="ct-icon-btn" @onclick="PrevMonth" aria-label="Previous month"><AppIcon Name="chevron-left" Size="18" /></button>
                 <strong>@_viewMonth.ToString("MMMM yyyy")</strong>
                 <div style="display:flex; gap:4px; align-items:center;">
-                    <button class="ct-icon-btn" @onclick="NextMonth">▶</button>
-                    <button class="ct-icon-btn" @onclick="Close">✕</button>
+                    <button class="ct-icon-btn" @onclick="NextMonth" aria-label="Next month"><AppIcon Name="chevron-right" Size="18" /></button>
+                    <button class="ct-icon-btn" @onclick="Close" aria-label="Close"><AppIcon Name="close" Size="18" /></button>
                 </div>
             </div>
             <div class="ct-modal-body">

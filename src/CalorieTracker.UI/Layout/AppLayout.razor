@@ -11,7 +11,7 @@
     {
         <div class="ct-update-banner" role="status" aria-live="polite">
             <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-                <span style="font-size:1.1rem;">✨</span>
+                <span style="color:var(--ct-green);"><AppIcon Name="refresh" Size="18" /></span>
                 <div style="min-width:0;">
                     <div style="font-weight:700; font-size:0.86rem;">Update ready</div>
                     <div class="ct-muted" style="font-size:0.75rem;">A newer version is ready to install</div>
@@ -19,22 +19,22 @@
             </div>
             <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
                 <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="ApplyUpdateAsync">Update</button>
-                <button class="ct-icon-btn" title="Dismiss" @onclick="() => _updateDismissed = true">✕</button>
+                <button class="ct-icon-btn" title="Dismiss" @onclick="() => _updateDismissed = true"><AppIcon Name="close" Size="16" /></button>
             </div>
         </div>
     }
 
     <nav class="ct-bottom-nav" aria-label="Main navigation">
         <NavLink class="ct-nav-item" href="" Match="NavLinkMatch.All">
-            <span class="ct-nav-icon">📓</span>
+            <span class="ct-nav-icon"><AppIcon Name="diary" Size="20" /></span>
             <span>Diary</span>
         </NavLink>
         <NavLink class="ct-nav-item" href="foods">
-            <span class="ct-nav-icon">🥗</span>
+            <span class="ct-nav-icon"><AppIcon Name="foods" Size="20" /></span>
             <span>Foods</span>
         </NavLink>
         <NavLink class="ct-nav-item" href="progress">
-            <span class="ct-nav-icon">📈</span>
+            <span class="ct-nav-icon"><AppIcon Name="progress" Size="20" /></span>
             <span>Progress</span>
         </NavLink>
     </nav>
