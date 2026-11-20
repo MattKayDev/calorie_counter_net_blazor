@@ -6,12 +6,12 @@
 <div class="ct-topbar">
     <div class="ct-topbar-row">
         <div class="ct-topbar-left">
-            <a class="ct-cog-btn" href="settings" title="Settings" aria-label="Settings"><AppIcon Name="settings" Size="20" /></a>
+            <a class="ct-cog-btn" href="settings" title="Settings" aria-label="Settings"><AppIcon Name="@AppIcons.Settings" Size="20" /></a>
             <div class="ct-brand">Foods &amp; Meals</div>
         </div>
         <button class="ct-datebtn" style="padding:6px 8px; font-size:0.84rem;"
                 @onclick="() => _scannerOpen = true">
-            <AppIcon Name="barcode" Size="16" /> Scan
+            <AppIcon Name="@AppIcons.Barcode" Size="16" /> Scan
         </button>
     </div>
 </div>
@@ -50,7 +50,7 @@
             @if (_foods.Count == 0)
             {
                 <div class="ct-muted" style="text-align:center; padding:24px 0;">
-                    Type a food name, tap <BarcodeIcon Size="15" /> to scan a barcode, or tap <strong>Add</strong> to create a custom food.
+                    Type a food name, tap <AppIcon Name="@AppIcons.Barcode" Size="15" /> to scan a barcode, or tap <strong>Add</strong> to create a custom food.
                 </div>
             }
             else
@@ -73,7 +73,7 @@
                                     • P @f.ProteinPer100G.ToString("0.#")g • C @f.CarbsPer100G.ToString("0.#")g • F @f.FatPer100G.ToString("0.#")g
                                 </div>
                             </div>
-                            <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteFoodAsync(f.Id)"><AppIcon Name="trash" Size="16" /></button>
+                            <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteFoodAsync(f.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
                         </div>
                     }
                 </div>
@@ -111,7 +111,7 @@
                                         P @perSrv.ProteinG.ToString("0.#")g • C @perSrv.CarbsG.ToString("0.#")g • F @perSrv.FatG.ToString("0.#")g • Salt @perSrv.SaltG.ToString("0.##")g
                                     </div>
                                 </div>
-                                <button class="ct-icon-btn" title="Delete meal" @onclick="() => DeleteMealAsync(meal.Id)"><AppIcon Name="trash" Size="16" /></button>
+                                <button class="ct-icon-btn" title="Delete meal" @onclick="() => DeleteMealAsync(meal.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
                             </div>
                         </div>
                     }
@@ -128,7 +128,7 @@
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
                 <strong>Create Custom Food</strong>
-                <button class="ct-icon-btn" @onclick="() => _foodModalOpen = false"><AppIcon Name="close" Size="18" /></button>
+                <button class="ct-icon-btn" @onclick="() => _foodModalOpen = false"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 <div class="ct-field">
@@ -207,7 +207,7 @@
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
                 <strong>Create Saved Meal</strong>
-                <button class="ct-icon-btn" @onclick="() => _mealModalOpen = false"><AppIcon Name="close" Size="18" /></button>
+                <button class="ct-icon-btn" @onclick="() => _mealModalOpen = false"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 <div class="ct-grid-2">

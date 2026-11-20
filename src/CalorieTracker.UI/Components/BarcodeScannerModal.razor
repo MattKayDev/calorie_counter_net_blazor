@@ -6,8 +6,8 @@
     <div class="ct-modal-backdrop" @onclick="CloseAsync">
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
-                <strong style="display:inline-flex; align-items:center; gap:6px;"><AppIcon Name="barcode" Size="18" /> Scan Food Barcode</strong>
-                <button class="ct-icon-btn" @onclick="CloseAsync"><AppIcon Name="close" Size="18" /></button>
+                <strong style="display:inline-flex; align-items:center; gap:6px;"><AppIcon Name="@AppIcons.Barcode" Size="18" /> Scan Food Barcode</strong>
+                <button class="ct-icon-btn" @onclick="CloseAsync"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 @if (!string.IsNullOrWhiteSpace(_error))

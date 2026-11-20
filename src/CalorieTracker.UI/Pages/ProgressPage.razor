@@ -8,7 +8,7 @@
 <div class="ct-topbar">
     <div class="ct-topbar-row">
         <div class="ct-topbar-left">
-            <a class="ct-cog-btn" href="settings" title="Settings" aria-label="Settings"><AppIcon Name="settings" Size="20" /></a>
+            <a class="ct-cog-btn" href="settings" title="Settings" aria-label="Settings"><AppIcon Name="@AppIcons.Settings" Size="20" /></a>
             <div class="ct-brand">Body &amp; Progress</div>
         </div>
         <button class="ct-datebtn" style="padding:6px 8px; font-size:0.84rem;"
@@ -63,7 +63,7 @@
     <!-- Goal Weight & Target Date Forecast Card -->
     <div class="ct-card">
         <div class="ct-card-header">
-            <h2 class="ct-card-title"><span style="color:var(--ct-green);"><AppIcon Name="target" Size="18" /></span> Goal Weight &amp; Forecast</h2>
+            <h2 class="ct-card-title"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Target" Size="18" /></span> Goal Weight &amp; Forecast</h2>
             @if (_recommendedDailyKcal is double rec && Math.Abs(rec - _profile.DailyCalorieGoal) >= 25)
             {
                 <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => ApplyRecommendedGoalAsync(rec)">
@@ -208,7 +208,7 @@
                                 }
                             </div>
                         </div>
-                        <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteMeasurementAsync(m.Id)"><AppIcon Name="trash" Size="16" /></button>
+                        <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteMeasurementAsync(m.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
                     </div>
                 }
             </div>
@@ -222,7 +222,7 @@
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
                 <strong>Log Body Measurements</strong>
-                <button class="ct-icon-btn" @onclick="() => _modalOpen = false"><AppIcon Name="close" Size="18" /></button>
+                <button class="ct-icon-btn" @onclick="() => _modalOpen = false"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 @if (_profile.BiologicalSex == BiologicalSex.Unspecified)

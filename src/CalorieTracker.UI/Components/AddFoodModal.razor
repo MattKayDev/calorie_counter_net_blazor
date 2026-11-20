@@ -8,7 +8,7 @@
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
                 <strong>Add to @ActiveSlotName</strong>
-                <button class="ct-icon-btn" @onclick="Close"><AppIcon Name="close" Size="18" /></button>
+                <button class="ct-icon-btn" @onclick="Close"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
                 @if (MealSlots.Count > 0)
@@ -95,7 +95,7 @@
                             <input class="ct-input" placeholder="Search food name or brand..."
                                    value="@_searchQuery" @oninput="OnSearchInput" />
                             <button class="ct-icon-btn" style="width:40px; height:40px; color:var(--ct-green);" title="Scan barcode" aria-label="Scan barcode" @onclick="() => _scannerOpen = true">
-                                <BarcodeIcon Size="22" />
+                                <AppIcon Name="@AppIcons.Barcode" Size="22" />
                             </button>
                         </div>
 
@@ -114,7 +114,7 @@
                         @if (_results.Count == 0 && !_isEnriching)
                         {
                             <div class="ct-muted" style="text-align:center; padding:24px 8px;">
-                                Type a food name or tap <BarcodeIcon Size="15" /> to scan a barcode.
+                                Type a food name or tap <AppIcon Name="@AppIcons.Barcode" Size="15" /> to scan a barcode.
                             </div>
                         }
                         else
