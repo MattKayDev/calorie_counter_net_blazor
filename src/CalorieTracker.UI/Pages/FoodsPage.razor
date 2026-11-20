@@ -11,7 +11,7 @@
         </div>
         <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
                 @onclick="() => _scannerOpen = true">
-            📷 Scan
+            <BarcodeIcon Size="16" /> Scan
         </button>
     </div>
 </div>
@@ -31,7 +31,7 @@
     {
         <div class="ct-card">
             <div style="display:flex; gap:8px; margin-bottom:10px;">
-                <input class="ct-input" placeholder="Search foods (local + Open Food Facts)..."
+                <input class="ct-input" placeholder="Search food name or brand..."
                        value="@_query" @oninput="OnSearchInput" />
                 <button class="ct-btn ct-btn-primary" @onclick="OpenNewFoodModal">+ New</button>
             </div>
@@ -39,18 +39,18 @@
             @if (_isEnriching)
             {
                 <div class="ct-muted" style="margin-bottom:8px;">
-                    Searching Open Food Facts and caching results into local SQLite...
+                    Searching for more matches...
                 </div>
             }
 
             <div class="ct-muted" style="margin-bottom:8px;">
-                Showing @_foods.Count food(s) • All searched & scanned foods are automatically saved locally.
+                Showing @_foods.Count food(s)
             </div>
 
             @if (_foods.Count == 0)
             {
                 <div class="ct-muted" style="text-align:center; padding:24px 0;">
-                    No foods found yet. Search by name, scan a barcode, or tap <strong>+ New</strong> to create a custom food.
+                    Type a food name, tap <BarcodeIcon Size="15" /> to scan a barcode, or tap <strong>+ New</strong> to add a custom food.
                 </div>
             }
             else

@@ -82,8 +82,8 @@
                         <div style="display:flex; gap:8px; margin-bottom:10px;">
                             <input class="ct-input" placeholder="Search food name or brand..."
                                    value="@_searchQuery" @oninput="OnSearchInput" />
-                            <button class="ct-btn ct-btn-soft" title="Scan barcode" @onclick="() => _scannerOpen = true">
-                                📷
+                            <button class="ct-btn ct-btn-soft" title="Scan barcode" aria-label="Scan barcode" @onclick="() => _scannerOpen = true">
+                                <BarcodeIcon Size="20" />
                             </button>
                         </div>
 
@@ -95,14 +95,14 @@
                         @if (_isEnriching)
                         {
                             <div class="ct-muted" style="margin-bottom:8px;">
-                                Showing local matches • Searching Open Food Facts to enrich local library...
+                                Searching for more matches...
                             </div>
                         }
 
                         @if (_results.Count == 0 && !_isEnriching)
                         {
                             <div class="ct-muted" style="text-align:center; padding:24px 8px;">
-                                Type a food name to search locally + Open Food Facts, or tap 📷 to scan a barcode.
+                                Type a food name or tap <BarcodeIcon Size="15" /> to scan a barcode.
                             </div>
                         }
                         else
