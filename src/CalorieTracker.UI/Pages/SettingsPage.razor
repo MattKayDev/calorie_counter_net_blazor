@@ -86,7 +86,7 @@
         {
             <div class="ct-alert ct-alert-info" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">
                 <span>TDEE ~@tdee!.Value.ToString("0") kcal • Recommended: <strong>@rec.ToString("0") kcal/day</strong></span>
-                <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => _profile.DailyCalorieGoal = rec">Apply</button>
+                <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => ApplyRecommendedCaloriesAsync(rec)">Apply &amp; Save</button>
             </div>
         }
     </div>
@@ -289,6 +289,13 @@
         _profile.ThemeMode = mode;
         await ProfileRepo.SaveAsync(_profile);
         await ThemeService.ApplyThemeAsync(mode);
+    }
+
+    private async Task ApplyRecommendedCaloriesAsync(double recommended)
+    {
+        _profile.DailyCalorieGoal = recommended;
+        await SaveProfileAsync();
+        _status = $"Applied {recommended:0} kcal/day and saved your goals!";
     }
 
     private async Task SaveProfileAsync()
