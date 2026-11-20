@@ -232,8 +232,8 @@ html, body {
 .ct-diary-layout {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 64px - env(safe-area-inset-bottom, 0px));
-    height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px));
+    height: calc(100vh - 60px - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 60px - env(safe-area-inset-bottom, 0px));
     margin-bottom: -84px;
     overflow: hidden;
 }
@@ -245,21 +245,29 @@ html, body {
 
 .ct-diary-fixed {
     flex-shrink: 0;
-    padding: 12px 14px 8px;
+    padding: 10px 14px 6px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+}
+
+.ct-diary-fixed .ct-card {
+    padding: 12px 14px;
 }
 
 .ct-diary-scroll {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 6px 14px 88px;
+    padding: 6px 14px 96px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
+}
+
+.ct-diary-scroll > * {
+    flex-shrink: 0;
 }
 
 .ct-card {
@@ -435,6 +443,7 @@ html, body {
 .ct-slot-card {
     padding: 0;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .ct-slot-head {
