@@ -503,6 +503,8 @@ html, body {
     align-items: center;
     justify-content: center;
     gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
     transition: transform 0.08s ease, opacity 0.15s ease;
 }
 

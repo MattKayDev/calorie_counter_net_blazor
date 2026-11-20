@@ -33,7 +33,7 @@
             <div style="display:flex; gap:8px; margin-bottom:10px;">
                 <input class="ct-input" placeholder="Search food name or brand..."
                        value="@_query" @oninput="OnSearchInput" />
-                <button class="ct-btn ct-btn-primary" @onclick="OpenNewFoodModal">+ New</button>
+                <button class="ct-btn ct-btn-primary" @onclick="OpenNewFoodModal">Add</button>
             </div>
 
             @if (_isEnriching)
@@ -50,7 +50,7 @@
             @if (_foods.Count == 0)
             {
                 <div class="ct-muted" style="text-align:center; padding:24px 0;">
-                    Type a food name, tap <BarcodeIcon Size="15" /> to scan a barcode, or tap <strong>+ New</strong> to add a custom food.
+                    Type a food name, tap <BarcodeIcon Size="15" /> to scan a barcode, or tap <strong>Add</strong> to create a custom food.
                 </div>
             }
             else
