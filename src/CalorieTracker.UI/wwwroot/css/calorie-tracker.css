@@ -173,6 +173,7 @@
 
 * {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
@@ -282,8 +283,10 @@ html, body {
     gap: 6px;
 }
 
-.ct-datebtn:hover {
-    background: rgba(255, 255, 255, 0.18);
+@media (hover: hover) and (pointer: fine) {
+    .ct-datebtn:hover {
+        background: rgba(255, 255, 255, 0.18);
+    }
 }
 
 /* Calorie Ring Summary */
@@ -410,8 +413,10 @@ html, body {
     transition: background 0.12s ease;
 }
 
-.ct-slot-head:hover {
-    background: var(--ct-surface-muted);
+@media (hover: hover) and (pointer: fine) {
+    .ct-slot-head:hover {
+        background: var(--ct-surface-muted);
+    }
 }
 
 .ct-slot-plus {
@@ -557,9 +562,11 @@ html, body {
     font-size: 1rem;
 }
 
-.ct-icon-btn:hover {
-    background: rgba(15, 23, 42, 0.06);
-    color: var(--ct-text);
+@media (hover: hover) and (pointer: fine) {
+    .ct-icon-btn:hover {
+        background: rgba(15, 23, 42, 0.06);
+        color: var(--ct-text);
+    }
 }
 
 /* Forms */
@@ -710,8 +717,10 @@ html, body {
     border-bottom: none;
 }
 
-.ct-menu-row:hover {
-    background: var(--ct-surface-muted);
+@media (hover: hover) and (pointer: fine) {
+    .ct-menu-row:hover {
+        background: var(--ct-surface-muted);
+    }
 }
 
 .ct-menu-left {
@@ -773,8 +782,10 @@ html, body {
     flex-shrink: 0;
 }
 
-.ct-cog-btn:hover {
-    background: rgba(255, 255, 255, 0.14);
+@media (hover: hover) and (pointer: fine) {
+    .ct-cog-btn:hover {
+        background: rgba(255, 255, 255, 0.14);
+    }
 }
 
 .ct-nav-item {
