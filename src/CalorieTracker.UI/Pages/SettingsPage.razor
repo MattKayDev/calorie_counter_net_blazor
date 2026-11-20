@@ -295,7 +295,7 @@
     {
         <div class="ct-card">
             <div class="ct-muted" style="margin-bottom:10px;">
-                Customize and reorder when you log food (e.g. Breakfast, Lunch, Dinner, Snacks, Pre-Workout).
+                Customize and reorder when you log food or drinks (e.g. Breakfast, Lunch, Dinner, Snacks, Drinks).
             </div>
 
             <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
@@ -317,16 +317,22 @@
                 }
             </div>
 
-            <div style="display:flex; gap:8px;">
-                <select class="ct-select" style="width:110px; flex-shrink:0;" @bind="_newSlotIcon">
-                    <option value="@AppIcons.MealMorning">Morning</option>
-                    <option value="@AppIcons.MealMidday">Midday</option>
-                    <option value="@AppIcons.MealMain">Meal</option>
-                    <option value="@AppIcons.MealSnack">Snack</option>
-                    <option value="@AppIcons.MealEvening">Evening</option>
-                </select>
-                <input class="ct-input" placeholder="New meal time (e.g. Pre-Workout)" @bind="_newSlotName" />
-                <button class="ct-btn ct-btn-soft" @onclick="AddSlotAsync">Add</button>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="color:var(--ct-green); display:inline-flex; flex-shrink:0;"><AppIcon Name="@_newSlotIcon" Size="20" /></span>
+                    <select class="ct-select" @bind="_newSlotIcon">
+                        <option value="@AppIcons.MealMorning">Morning</option>
+                        <option value="@AppIcons.MealMidday">Midday</option>
+                        <option value="@AppIcons.MealMain">Meal</option>
+                        <option value="@AppIcons.MealSnack">Snack</option>
+                        <option value="@AppIcons.MealDrink">Drinks</option>
+                        <option value="@AppIcons.MealEvening">Evening</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <input class="ct-input" placeholder="New meal time (e.g. Drinks, Pre-Workout)" @bind="_newSlotName" />
+                    <button class="ct-btn ct-btn-soft" @onclick="AddSlotAsync">Add</button>
+                </div>
             </div>
         </div>
     }

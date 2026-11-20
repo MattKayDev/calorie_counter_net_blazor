@@ -45,5 +45,6 @@ public static class AppIcons
     public const string MealMidday = "sun";
     public const string MealMain = "foods";
     public const string MealSnack = "snack";
+    public const string MealDrink = "drink";
     public const string MealEvening = "moon";
 }
