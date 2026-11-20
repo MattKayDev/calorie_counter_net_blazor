@@ -731,6 +731,18 @@ public sealed class SqliteBackupService : IDatabaseBackupService
         _foodsInit = foodsInit;
     }
 
+    public async Task<long> GetPersonalDatabaseSizeBytesAsync(CancellationToken ct = default)
+    {
+        await _personalInit.EnsureCreatedAsync(ct);
+        return await GetDatabaseSizeBytesAsync(_personalEngine, ct);
+    }
+
+    public async Task<long> GetFoodsDatabaseSizeBytesAsync(CancellationToken ct = default)
+    {
+        await _foodsInit.EnsureCreatedAsync(ct);
+        return await GetDatabaseSizeBytesAsync(_foodsEngine, ct);
+    }
+
     public async Task<byte[]> ExportPersonalSqliteBytesAsync(CancellationToken ct = default)
     {
         await _personalInit.EnsureCreatedAsync(ct);
@@ -755,5 +767,29 @@ public sealed class SqliteBackupService : IDatabaseBackupService
         await _foodsEngine.ImportBytesAsync(sqliteBytes, ct);
         _foodsInit.ResetInitializationState();
         await _foodsInit.EnsureCreatedAsync(ct);
+    }
+
+    private static async Task<long> GetDatabaseSizeBytesAsync(ISqliteEngine engine, CancellationToken ct)
+    {
+        var pageCount = ReadFirstLong(await engine.QueryAsync("PRAGMA page_count;", null, ct));
+        var pageSize = ReadFirstLong(await engine.QueryAsync("PRAGMA page_size;", null, ct));
+        return pageCount > 0 && pageSize > 0 ? pageCount * pageSize : 0L;
+    }
+
+    private static long ReadFirstLong(List<Dictionary<string, JsonElement>> rows)
+    {
+        if (rows.Count == 0 || rows[0].Count == 0) return 0L;
+        var el = rows[0].Values.First();
+        if (el.ValueKind == JsonValueKind.Number)
+        {
+            if (el.TryGetInt64(out var l)) return l;
+            if (el.TryGetDouble(out var d)) return (long)d;
+        }
+        if (el.ValueKind == JsonValueKind.String
+            && long.TryParse(el.GetString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+        return 0L;
     }
 }

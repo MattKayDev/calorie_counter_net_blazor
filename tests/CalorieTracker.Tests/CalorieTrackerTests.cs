@@ -48,6 +48,16 @@ public class BodyMetricsAndUnitsTests
         Assert.Equal("154.3 lbs", UnitConverter.FormatWeight(70, UnitSystem.UsImperial));
         Assert.Equal("5' 10.9\"", UnitConverter.FormatHeight(180, UnitSystem.UkImperial));
     }
+
+    [Fact]
+    public void UnitConverter_FormatsStorageSizesAcrossBytesKbMbAndGb()
+    {
+        Assert.Equal("—", UnitConverter.FormatStorageSize(null));
+        Assert.Equal("512 B", UnitConverter.FormatStorageSize(512));
+        Assert.Equal("36.0 KB", UnitConverter.FormatStorageSize(36 * 1024L));
+        Assert.Equal("1.50 MB", UnitConverter.FormatStorageSize((long)(1.5 * 1024 * 1024)));
+        Assert.Equal("2.50 GB", UnitConverter.FormatStorageSize((long)(2.5 * 1024 * 1024 * 1024)));
+    }
 }
 
 public class SqliteRepositoryAndLookupTests
@@ -316,5 +326,37 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal(100, items[0].CarbsPer100G);
         Assert.Equal(100, items[0].SugarsPer100G);
         Assert.Equal(1.0, items[0].SaltPer100G); // 400mg sodium = 0.4g * 2.5 = 1.0g salt
+    }
+
+    [Fact]
+    public async Task BackupService_ReportsPositiveDatabaseSizesForBothDatabases()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+        var backupService = new SqliteBackupService(personalEngine, personalInit, foodsEngine, foodsInit);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+
+        var initialPersonalBytes = await backupService.GetPersonalDatabaseSizeBytesAsync();
+        var initialFoodsBytes = await backupService.GetFoodsDatabaseSizeBytesAsync();
+
+        Assert.True(initialPersonalBytes > 0);
+        Assert.True(initialFoodsBytes > 0);
+
+        for (var i = 0; i < 40; i++)
+        {
+            await foodRepo.UpsertAsync(new FoodItem
+            {
+                Name = $"Sample Food Item {i} with long description text",
+                Brand = "Brand Name",
+                Barcode = $"0000000000{i:000}",
+                Source = FoodSource.Custom,
+                CaloriesPer100G = 250 + i
+            });
+        }
+
+        var expandedFoodsBytes = await backupService.GetFoodsDatabaseSizeBytesAsync();
+        Assert.True(expandedFoodsBytes >= initialFoodsBytes);
     }
 }

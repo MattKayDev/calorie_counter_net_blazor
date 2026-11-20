@@ -41,7 +41,7 @@
     {
         <!-- Main Settings Menu -->
         <div class="ct-card ct-menu-card">
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.Appearance)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.Appearance)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Palette" Size="20" /></div>
                     <div>
@@ -52,7 +52,7 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.GoalPlanner)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.GoalPlanner)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Target" Size="20" /></div>
                     <div>
@@ -63,7 +63,7 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.NutritionGoals)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.NutritionGoals)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Nutrition" Size="20" /></div>
                     <div>
@@ -74,7 +74,7 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.ProfileUnits)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.ProfileUnits)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.User" Size="20" /></div>
                     <div>
@@ -85,7 +85,7 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.MealSlots)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.MealSlots)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Foods" Size="20" /></div>
                     <div>
@@ -96,7 +96,7 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.Backups)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.Backups)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Database" Size="20" /></div>
                     <div>
@@ -107,7 +107,7 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
-            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.Updates)">
+            <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.Updates)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Refresh" Size="20" /></div>
                     <div>
@@ -368,9 +368,14 @@
     else if (_section == SettingsSection.Backups)
     {
         <div class="ct-card">
-            <h2 class="ct-card-title" style="margin-bottom:8px;"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Lock" Size="18" /></span> Private Personal Data (personal.sqlite)</h2>
+            <div class="ct-card-header" style="align-items:flex-start; margin-bottom:8px;">
+                <h2 class="ct-card-title"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Lock" Size="18" /></span> Private Personal Data</h2>
+                <span class="ct-badge ct-badge-green" style="flex-shrink:0; white-space:nowrap;">
+                    @(_loadingDbSizes && _personalDbBytes is null ? "..." : UnitConverter.FormatStorageSize(_personalDbBytes))
+                </span>
+            </div>
             <div class="ct-muted" style="margin-bottom:12px;">
-                Contains your diary logs, body measurements, water logs, saved meals, and goals. Kept strictly private on this device.
+                <code>personal.sqlite</code> — Contains your diary logs, body measurements, water logs, saved meals, and goals. Kept strictly private on this device.
             </div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -386,9 +391,14 @@
         </div>
 
         <div class="ct-card">
-            <h2 class="ct-card-title" style="margin-bottom:8px;"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Database" Size="18" /></span> Shareable Food Catalog (foods.sqlite)</h2>
+            <div class="ct-card-header" style="align-items:flex-start; margin-bottom:8px;">
+                <h2 class="ct-card-title"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Database" Size="18" /></span> Shareable Food Catalog</h2>
+                <span class="ct-badge ct-badge-green" style="flex-shrink:0; white-space:nowrap;">
+                    @(_loadingDbSizes && _foodsDbBytes is null ? "..." : UnitConverter.FormatStorageSize(_foodsDbBytes))
+                </span>
+            </div>
             <div class="ct-muted" style="margin-bottom:12px;">
-                Contains only your food library (searched, scanned, and custom foods) with <strong>zero personal data</strong> — ready to export, share, or merge into a hosted database later.
+                <code>foods.sqlite</code> — Contains only your food library (searched, scanned, and custom foods) with <strong>zero personal data</strong> — ready to export, share, or merge into a hosted database later.
             </div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -402,6 +412,13 @@
                 </label>
             </div>
         </div>
+
+        @if (_personalDbBytes.HasValue && _foodsDbBytes.HasValue)
+        {
+            <div class="ct-muted" style="text-align:center;">
+                Total local database storage: <strong>@UnitConverter.FormatStorageSize(_personalDbBytes.Value + _foodsDbBytes.Value)</strong>
+            </div>
+        }
     }
     else if (_section == SettingsSection.Updates)
     {
@@ -497,6 +514,9 @@
     private string _newSlotIcon = AppIcons.MealMain;
     private bool _slotModalOpen;
     private Guid? _editingSlotId;
+    private long? _personalDbBytes;
+    private long? _foodsDbBytes;
+    private bool _loadingDbSizes;
     private string? _status;
 
     private static readonly (string Icon, string Label)[] _mealIconOptions =
@@ -540,10 +560,29 @@
         SyncGoalWeightInput();
     }
 
-    private void OpenSection(SettingsSection section)
+    private async Task OpenSectionAsync(SettingsSection section)
     {
         _status = null;
         _section = section;
+        if (section == SettingsSection.Backups)
+        {
+            await LoadDatabaseSizesAsync();
+        }
+    }
+
+    private async Task LoadDatabaseSizesAsync()
+    {
+        _loadingDbSizes = true;
+        StateHasChanged();
+        try
+        {
+            _personalDbBytes = await BackupService.GetPersonalDatabaseSizeBytesAsync();
+            _foodsDbBytes = await BackupService.GetFoodsDatabaseSizeBytesAsync();
+        }
+        finally
+        {
+            _loadingDbSizes = false;
+        }
     }
 
     private void BackToMenu()
@@ -769,7 +808,7 @@
         var bytes = await BackupService.ExportPersonalSqliteBytesAsync();
         var fileName = $"personal-{DateTime.Now:yyyyMMdd-HHmm}.sqlite";
         await FileDownload.DownloadBytesAsync(fileName, "application/x-sqlite3", bytes);
-        _status = $"Exported private personal database {fileName} ({bytes.Length / 1024.0:0.0} KB).";
+        _status = $"Exported private personal database {fileName} ({UnitConverter.FormatStorageSize(bytes.Length)}).";
     }
 
     private async Task ImportPersonalBackupAsync(InputFileChangeEventArgs e)
@@ -781,6 +820,7 @@
         await stream.CopyToAsync(ms);
         await BackupService.ImportPersonalSqliteBytesAsync(ms.ToArray());
         await ReloadAsync();
+        await LoadDatabaseSizesAsync();
         _status = "Personal SQLite database restored successfully!";
     }
 
@@ -789,7 +829,7 @@
         var bytes = await BackupService.ExportFoodsSqliteBytesAsync();
         var fileName = $"foods-{DateTime.Now:yyyyMMdd-HHmm}.sqlite";
         await FileDownload.DownloadBytesAsync(fileName, "application/x-sqlite3", bytes);
-        _status = $"Exported shareable food catalog {fileName} ({bytes.Length / 1024.0:0.0} KB).";
+        _status = $"Exported shareable food catalog {fileName} ({UnitConverter.FormatStorageSize(bytes.Length)}).";
     }
 
     private async Task ImportFoodsBackupAsync(InputFileChangeEventArgs e)
@@ -800,6 +840,7 @@
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
         await BackupService.ImportFoodsSqliteBytesAsync(ms.ToArray());
+        await LoadDatabaseSizesAsync();
         _status = "Food catalog SQLite database restored successfully!";
     }
 }

@@ -91,4 +91,21 @@ public static class UnitConverter
 
     public static string LengthUnitLabel(UnitSystem unitSystem) =>
         unitSystem == UnitSystem.Metric ? "cm" : "in";
+
+    public static string FormatStorageSize(long? bytes)
+    {
+        if (bytes is null) return "—";
+        var b = Math.Max(0L, bytes.Value);
+        const long kb = 1024L;
+        const long mb = kb * 1024L;
+        const long gb = mb * 1024L;
+
+        return b switch
+        {
+            >= gb => $"{b / (double)gb:0.00} GB",
+            >= mb => $"{b / (double)mb:0.00} MB",
+            >= kb => $"{b / (double)kb:0.0} KB",
+            _ => $"{b} B"
+        };
+    }
 }
