@@ -1,9 +1,28 @@
 @inherits LayoutComponentBase
 @inject IUserProfileRepository ProfileRepo
 @inject IThemeService ThemeService
+@inject IAppUpdateService AppUpdate
+@implements IDisposable
 
 <div class="ct-shell">
     @Body
+
+    @if (AppUpdate.IsUpdateAvailable && !_updateDismissed)
+    {
+        <div class="ct-update-banner" role="status" aria-live="polite">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                <span style="font-size:1.1rem;">✨</span>
+                <div style="min-width:0;">
+                    <div style="font-weight:700; font-size:0.86rem;">Update ready</div>
+                    <div class="ct-muted" style="font-size:0.75rem;">A newer version is ready to install</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+                <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="ApplyUpdateAsync">Update</button>
+                <button class="ct-icon-btn" title="Dismiss" @onclick="() => _updateDismissed = true">✕</button>
+            </div>
+        </div>
+    }
 
     <nav class="ct-bottom-nav" aria-label="Main navigation">
         <NavLink class="ct-nav-item" href="" Match="NavLinkMatch.All">
@@ -22,8 +41,11 @@
 </div>
 
 @code {
+    private bool _updateDismissed;
+
     protected override async Task OnInitializedAsync()
     {
+        AppUpdate.UpdateAvailableChanged += HandleUpdateAvailable;
         try
         {
             var profile = await ProfileRepo.GetOrCreateAsync();
@@ -33,5 +55,20 @@
         {
             // ignore theme sync errors during early init
         }
+
+        await AppUpdate.StartWatchingAsync();
+    }
+
+    private void HandleUpdateAvailable()
+    {
+        _updateDismissed = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private Task ApplyUpdateAsync() => AppUpdate.ApplyUpdateAsync();
+
+    public void Dispose()
+    {
+        AppUpdate.UpdateAvailableChanged -= HandleUpdateAvailable;
     }
 }

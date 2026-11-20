@@ -93,6 +93,42 @@
     } catch { }
 
     window.pwaUpdateBridge = {
+        watchForUpdates: async function (dotNetRef) {
+            if (!('serviceWorker' in navigator)) return;
+            try {
+                const reg = await navigator.serviceWorker.getRegistration();
+                if (!reg) return;
+
+                const notify = () => {
+                    try { dotNetRef.invokeMethodAsync('OnUpdateReady'); } catch { }
+                };
+
+                if (reg.waiting) {
+                    notify();
+                }
+
+                reg.addEventListener('updatefound', () => {
+                    const installing = reg.installing;
+                    if (!installing) return;
+                    installing.addEventListener('statechange', () => {
+                        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                            notify();
+                        }
+                    });
+                });
+
+                // Check once on load and whenever the user returns to the PWA
+                reg.update().catch(() => { });
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        reg.update().catch(() => { });
+                    }
+                });
+            } catch {
+                // ignore in dev or restricted contexts
+            }
+        },
+
         checkForUpdate: async function () {
             if (!('serviceWorker' in navigator)) {
                 return { updateAvailable: false, isSupported: false, message: 'Service workers are not supported in this browser.' };

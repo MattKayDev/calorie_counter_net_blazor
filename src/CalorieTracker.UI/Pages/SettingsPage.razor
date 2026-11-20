@@ -440,6 +440,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _updateAvailable = AppUpdate.IsUpdateAvailable;
         await ReloadAsync();
     }
 

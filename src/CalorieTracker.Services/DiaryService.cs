@@ -24,6 +24,9 @@ public sealed record AppUpdateCheckResult(bool UpdateAvailable, bool IsSupported
 
 public interface IAppUpdateService
 {
+    event Action? UpdateAvailableChanged;
+    bool IsUpdateAvailable { get; }
+    Task StartWatchingAsync();
     Task<AppUpdateCheckResult> CheckForUpdateAsync();
     Task ApplyUpdateAsync();
 }

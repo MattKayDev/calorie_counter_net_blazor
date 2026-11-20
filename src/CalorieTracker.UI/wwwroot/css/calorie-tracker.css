@@ -881,3 +881,24 @@ html, body {
     border-radius: 12px;
     overflow: hidden;
 }
+
+/* Floating Update Ready Notification Banner */
+.ct-update-banner {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 24px);
+    max-width: 496px;
+    background: var(--ct-surface);
+    color: var(--ct-text);
+    border: 1.5px solid var(--ct-green);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+    z-index: 45;
+}

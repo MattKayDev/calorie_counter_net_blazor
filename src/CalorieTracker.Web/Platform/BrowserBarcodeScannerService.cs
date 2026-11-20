@@ -96,9 +96,14 @@ public sealed class BrowserThemeService : IThemeService
     }
 }
 
-public sealed class BrowserAppUpdateService : IAppUpdateService
+public sealed class BrowserAppUpdateService : IAppUpdateService, IDisposable
 {
     private readonly IJSRuntime _js;
+    private DotNetObjectReference<BrowserAppUpdateService>? _dotNetRef;
+    private bool _watching;
+
+    public event Action? UpdateAvailableChanged;
+    public bool IsUpdateAvailable { get; private set; }
 
     public BrowserAppUpdateService(IJSRuntime js)
     {
@@ -112,9 +117,40 @@ public sealed class BrowserAppUpdateService : IAppUpdateService
         public string Message { get; set; } = string.Empty;
     }
 
+    public async Task StartWatchingAsync()
+    {
+        if (_watching) return;
+        _watching = true;
+        _dotNetRef?.Dispose();
+        _dotNetRef = DotNetObjectReference.Create(this);
+        try
+        {
+            await _js.InvokeVoidAsync("pwaUpdateBridge.watchForUpdates", _dotNetRef);
+        }
+        catch
+        {
+            // ignore if JS not ready
+        }
+    }
+
+    [JSInvokable]
+    public void OnUpdateReady()
+    {
+        if (!IsUpdateAvailable)
+        {
+            IsUpdateAvailable = true;
+            UpdateAvailableChanged?.Invoke();
+        }
+    }
+
     public async Task<AppUpdateCheckResult> CheckForUpdateAsync()
     {
         var dto = await _js.InvokeAsync<JsUpdateCheckDto>("pwaUpdateBridge.checkForUpdate");
+        if (dto.UpdateAvailable && !IsUpdateAvailable)
+        {
+            IsUpdateAvailable = true;
+            UpdateAvailableChanged?.Invoke();
+        }
         return new AppUpdateCheckResult(dto.UpdateAvailable, dto.IsSupported, dto.Message);
     }
 
@@ -122,4 +158,6 @@ public sealed class BrowserAppUpdateService : IAppUpdateService
     {
         await _js.InvokeVoidAsync("pwaUpdateBridge.applyUpdate");
     }
+
+    public void Dispose() => _dotNetRef?.Dispose();
 }
