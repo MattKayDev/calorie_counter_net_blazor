@@ -182,6 +182,7 @@
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 html, body {
@@ -647,7 +648,7 @@ html, body {
     border: 1px solid var(--ct-border);
     background: var(--ct-surface-muted);
     color: var(--ct-text);
-    font-size: 0.92rem;
+    font-size: 16px;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
