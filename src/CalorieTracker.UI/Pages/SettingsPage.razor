@@ -40,9 +40,7 @@
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Palette" Size="20" /></div>
                     <div>
                         <div class="ct-menu-title">Appearance</div>
-                        <div class="ct-menu-sub">
-                            @(_profile.ThemeMode == ThemeMode.Dark ? "Dark Mode" : "Light Mode") • @GetSchemeLabel(_profile.ColorScheme)
-                        </div>
+                        <div class="ct-menu-sub">Light or dark theme and accent colours</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -52,10 +50,8 @@
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Target" Size="20" /></div>
                     <div>
-                        <div class="ct-menu-title">Goal Weight &amp; Calorie Planner</div>
-                        <div class="ct-menu-sub">
-                            @(_profile.GoalWeightKg is double gw ? $"Goal {UnitConverter.FormatWeight(gw, _profile.UnitSystem)} • {_profile.WeeklyWeightChangeKg:+0.##;-0.##;0} kg/wk" : "Set goal weight, age & activity level")
-                        </div>
+                        <div class="ct-menu-title">Weight Goal</div>
+                        <div class="ct-menu-sub">Target weight, weekly pace, and calorie planner</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -65,10 +61,8 @@
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Nutrition" Size="20" /></div>
                     <div>
-                        <div class="ct-menu-title">Daily Nutrition &amp; Water Goals</div>
-                        <div class="ct-menu-sub">
-                            @_profile.DailyCalorieGoal.ToString("0") kcal • P @_profile.ProteinGoalG.ToString("0")g • @_profile.DailyWaterGoalMl ml water
-                        </div>
+                        <div class="ct-menu-title">Nutrition Goals</div>
+                        <div class="ct-menu-sub">Daily calorie, macro, nutrient, and water targets</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -78,10 +72,8 @@
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.User" Size="20" /></div>
                     <div>
-                        <div class="ct-menu-title">Profile &amp; Measurement Units</div>
-                        <div class="ct-menu-sub">
-                            @FormatUnitLabel(_profile.UnitSystem) • @UnitConverter.FormatHeight(_profile.HeightCm, _profile.UnitSystem) • @_profile.BiologicalSex
-                        </div>
+                        <div class="ct-menu-title">Profile &amp; Units</div>
+                        <div class="ct-menu-sub">Height, biological sex, and measurement units</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -91,8 +83,8 @@
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Foods" Size="20" /></div>
                     <div>
-                        <div class="ct-menu-title">Meal Times &amp; Slots</div>
-                        <div class="ct-menu-sub">@_slots.Count active meal slots (add, reorder, archive)</div>
+                        <div class="ct-menu-title">Meal Times</div>
+                        <div class="ct-menu-sub">Add, reorder, or remove your daily meal slots</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -102,8 +94,8 @@
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Database" Size="20" /></div>
                     <div>
-                        <div class="ct-menu-title">Data &amp; SQLite Backups</div>
-                        <div class="ct-menu-sub">Export or restore personal.sqlite &amp; foods.sqlite</div>
+                        <div class="ct-menu-title">Backups</div>
+                        <div class="ct-menu-sub">Export or restore your personal data and food library</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -113,9 +105,9 @@
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Refresh" Size="20" /></div>
                     <div>
-                        <div class="ct-menu-title">App Updates</div>
+                        <div class="ct-menu-title">Updates</div>
                         <div class="ct-menu-sub">
-                            @(_updateAvailable ? "Update ready to install!" : "Check for a newer version")
+                            @(_updateAvailable ? "Update ready to install!" : "Check for and install newer app versions")
                         </div>
                     </div>
                 </div>
@@ -474,12 +466,12 @@
     private static string GetSectionTitle(SettingsSection section) => section switch
     {
         SettingsSection.Appearance => "Appearance",
-        SettingsSection.GoalPlanner => "Goal Weight & Planner",
-        SettingsSection.NutritionGoals => "Nutrition & Water Goals",
+        SettingsSection.GoalPlanner => "Weight Goal",
+        SettingsSection.NutritionGoals => "Nutrition Goals",
         SettingsSection.ProfileUnits => "Profile & Units",
-        SettingsSection.MealSlots => "Meal Times & Slots",
-        SettingsSection.Backups => "Data & Backups",
-        SettingsSection.Updates => "App Updates",
+        SettingsSection.MealSlots => "Meal Times",
+        SettingsSection.Backups => "Backups",
+        SettingsSection.Updates => "Updates",
         _ => "Settings"
     };
 
@@ -509,17 +501,6 @@
     }
 
     private Task ApplyUpdateAsync() => AppUpdate.ApplyUpdateAsync();
-
-    private static string GetSchemeLabel(ColorScheme scheme) =>
-        _colorOptions.FirstOrDefault(o => o.Scheme == scheme).Label ?? "Royal Blue";
-
-    private static string FormatUnitLabel(UnitSystem unit) => unit switch
-    {
-        UnitSystem.Metric => "Metric (kg, cm)",
-        UnitSystem.UkImperial => "UK Imperial",
-        UnitSystem.UsImperial => "US Imperial",
-        _ => "Metric"
-    };
 
     private void SyncGoalWeightInput()
     {
