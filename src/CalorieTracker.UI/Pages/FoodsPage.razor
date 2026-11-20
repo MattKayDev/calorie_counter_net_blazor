@@ -1,0 +1,427 @@
+@page "/foods"
+@inject IFoodItemRepository FoodRepo
+@inject IFoodLookupService FoodLookup
+@inject IMealRepository MealRepo
+
+<div class="ct-topbar">
+    <div class="ct-topbar-row">
+        <div class="ct-brand">🥗 Foods & Meals</div>
+        <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
+                @onclick="() => _scannerOpen = true">
+            📷 Scan
+        </button>
+    </div>
+</div>
+
+<div class="ct-page">
+    <div class="ct-tabs">
+        <button class="ct-tab @(_tab == 0 ? "active" : "")" @onclick="() => _tab = 0">Food Library</button>
+        <button class="ct-tab @(_tab == 1 ? "active" : "")" @onclick="() => _tab = 1">Saved Meals (@_meals.Count)</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_notice))
+    {
+        <div class="ct-alert ct-alert-success">@_notice</div>
+    }
+
+    @if (_tab == 0)
+    {
+        <div class="ct-card">
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input class="ct-input" placeholder="Search foods (local + Open Food Facts)..."
+                       value="@_query" @oninput="OnSearchInput" />
+                <button class="ct-btn ct-btn-primary" @onclick="OpenNewFoodModal">+ New</button>
+            </div>
+
+            @if (_isEnriching)
+            {
+                <div class="ct-muted" style="margin-bottom:8px;">
+                    Searching Open Food Facts and caching results into local SQLite...
+                </div>
+            }
+
+            <div class="ct-muted" style="margin-bottom:8px;">
+                Showing @_foods.Count food(s) • All searched & scanned foods are automatically saved locally.
+            </div>
+
+            @if (_foods.Count == 0)
+            {
+                <div class="ct-muted" style="text-align:center; padding:24px 0;">
+                    No foods found yet. Search by name, scan a barcode, or tap <strong>+ New</strong> to create a custom food.
+                </div>
+            }
+            else
+            {
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    @foreach (var f in _foods)
+                    {
+                        <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
+                            <div>
+                                <div class="ct-entry-name">
+                                    @f.Name
+                                    @if (f.Source == FoodSource.Custom)
+                                    {
+                                        <span class="ct-badge ct-badge-green" style="margin-left:4px;">Custom</span>
+                                    }
+                                </div>
+                                <div class="ct-entry-meta">
+                                    @(string.IsNullOrWhiteSpace(f.Brand) ? "No brand" : f.Brand)
+                                    • @f.CaloriesPer100G.ToString("0") kcal / 100g
+                                    • P @f.ProteinPer100G.ToString("0.#")g • C @f.CarbsPer100G.ToString("0.#")g • F @f.FatPer100G.ToString("0.#")g
+                                </div>
+                            </div>
+                            <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteFoodAsync(f.Id)">🗑️</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="ct-card">
+            <div class="ct-card-header">
+                <h2 class="ct-card-title">My Saved Meals</h2>
+                <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="OpenNewMealModal">+ Create Meal</button>
+            </div>
+
+            @if (_meals.Count == 0)
+            {
+                <div class="ct-muted" style="text-align:center; padding:24px 0;">
+                    Combine foods into reusable meals (e.g. "Morning Oats", "Chicken Rice Bowl") to log them in one tap!
+                </div>
+            }
+            else
+            {
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    @foreach (var meal in _meals)
+                    {
+                        var perSrv = meal.PerServingNutrients;
+                        <div class="ct-card" style="background:var(--ct-surface-muted); box-shadow:none; padding:12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                <div>
+                                    <div style="font-weight:700;">@meal.Name</div>
+                                    <div class="ct-muted">
+                                        @perSrv.CaloriesKcal.ToString("0") kcal / serving • @meal.DefaultServings.ToString("0.#") serving(s) • @meal.Ingredients.Count ingredients
+                                    </div>
+                                    <div class="ct-entry-meta" style="margin-top:4px;">
+                                        P @perSrv.ProteinG.ToString("0.#")g • C @perSrv.CarbsG.ToString("0.#")g • F @perSrv.FatG.ToString("0.#")g • Salt @perSrv.SaltG.ToString("0.##")g
+                                    </div>
+                                </div>
+                                <button class="ct-icon-btn" title="Delete meal" @onclick="() => DeleteMealAsync(meal.Id)">🗑️</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create Custom Food Modal -->
+@if (_foodModalOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="() => _foodModalOpen = false">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>Create Custom Food</strong>
+                <button class="ct-icon-btn" @onclick="() => _foodModalOpen = false">✕</button>
+            </div>
+            <div class="ct-modal-body">
+                <div class="ct-field">
+                    <label class="ct-label">Food Name *</label>
+                    <input class="ct-input" placeholder="e.g. Greek Yogurt 0%" @bind="_editFood.Name" />
+                </div>
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Brand (optional)</label>
+                        <input class="ct-input" placeholder="e.g. Fage" @bind="_editFood.Brand" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Barcode (optional)</label>
+                        <input class="ct-input" placeholder="EAN / UPC" @bind="_editFood.Barcode" />
+                    </div>
+                </div>
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Serving Size (g)</label>
+                        <input class="ct-input" type="number" step="1" @bind="_editFood.ServingSizeG" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Serving Label</label>
+                        <input class="ct-input" placeholder="e.g. 1 pot (150g)" @bind="_editFood.ServingDescription" />
+                    </div>
+                </div>
+
+                <div style="font-weight:700; font-size:0.86rem; margin:10px 0 8px;">Nutrients per 100g</div>
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Calories (kcal)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.CaloriesPer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Protein (g)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.ProteinPer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Carbs (g)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.CarbsPer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Sugars (g)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.SugarsPer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Fat (g)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.FatPer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Saturated Fat (g)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.SaturatedFatPer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Fibre (g)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_editFood.FibrePer100G" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Salt (g)</label>
+                        <input class="ct-input" type="number" step="0.01" @bind="_editFood.SaltPer100G" />
+                    </div>
+                </div>
+
+                <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:8px;" @onclick="SaveCustomFoodAsync">
+                    Save Custom Food
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Create Meal Modal -->
+@if (_mealModalOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="() => _mealModalOpen = false">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>Create Saved Meal</strong>
+                <button class="ct-icon-btn" @onclick="() => _mealModalOpen = false">✕</button>
+            </div>
+            <div class="ct-modal-body">
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Meal Name *</label>
+                        <input class="ct-input" placeholder="e.g. Protein Oats" @bind="_editMeal.Name" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Total Servings</label>
+                        <input class="ct-input" type="number" step="0.5" min="0.5" @bind="_editMeal.DefaultServings" />
+                    </div>
+                </div>
+
+                <div style="font-weight:700; font-size:0.86rem; margin:8px 0 6px;">Add Ingredient from Local Foods</div>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <select class="ct-select" @bind="_selectedIngredientFoodId">
+                        <option value="">-- Choose a food --</option>
+                        @foreach (var f in _allLocalFoods)
+                        {
+                            <option value="@f.Id">@f.Name (@f.CaloriesPer100G.ToString("0") kcal/100g)</option>
+                        }
+                    </select>
+                    <input class="ct-input" style="width:92px;" type="number" min="1" @bind="_ingredientGrams" placeholder="g" />
+                    <button class="ct-btn ct-btn-soft" @onclick="AddIngredientToMeal">+</button>
+                </div>
+
+                @if (_editMeal.Ingredients.Count > 0)
+                {
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+                        @foreach (var ing in _editMeal.Ingredients)
+                        {
+                            <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
+                                <div>
+                                    <div class="ct-entry-name">@ing.FoodNameSnapshot</div>
+                                    <div class="ct-entry-meta">@ing.QuantityGrams.ToString("0")g • @ing.CaloriesKcal.ToString("0") kcal</div>
+                                </div>
+                                <button class="ct-icon-btn" @onclick="() => _editMeal.Ingredients.Remove(ing)">✕</button>
+                            </div>
+                        }
+                    </div>
+                    <div class="ct-alert ct-alert-info" style="margin-bottom:10px;">
+                        Per serving: <strong>@_editMeal.PerServingNutrients.CaloriesKcal.ToString("0") kcal</strong>
+                        (P @_editMeal.PerServingNutrients.ProteinG.ToString("0.#")g • C @_editMeal.PerServingNutrients.CarbsG.ToString("0.#")g • F @_editMeal.PerServingNutrients.FatG.ToString("0.#")g)
+                    </div>
+                }
+
+                <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveMealAsync">
+                    Save Meal
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<BarcodeScannerModal IsOpen="_scannerOpen"
+                     OnBarcodeScanned="HandleBarcodeScannedAsync"
+                     OnClose="() => _scannerOpen = false" />
+
+@code {
+    private int _tab;
+    private string _query = string.Empty;
+    private List<FoodItem> _foods = new();
+    private List<FoodItem> _allLocalFoods = new();
+    private List<Meal> _meals = new();
+    private bool _isEnriching;
+    private bool _scannerOpen;
+    private bool _foodModalOpen;
+    private bool _mealModalOpen;
+    private string? _notice;
+
+    private FoodItem _editFood = new();
+    private Meal _editMeal = new();
+    private string _selectedIngredientFoodId = string.Empty;
+    private double _ingredientGrams = 100;
+    private CancellationTokenSource? _searchCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _allLocalFoods = await FoodRepo.GetAllAsync(200);
+        _foods = string.IsNullOrWhiteSpace(_query)
+            ? _allLocalFoods
+            : await FoodLookup.SearchLocalAsync(_query);
+        _meals = await MealRepo.GetAllAsync();
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+        _notice = null;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+
+        var local = await FoodLookup.SearchLocalAsync(_query, 50, ct);
+        _foods = local;
+        StateHasChanged();
+
+        if (_query.Trim().Length < 2)
+        {
+            _isEnriching = false;
+            return;
+        }
+
+        try
+        {
+            _isEnriching = true;
+            StateHasChanged();
+            await Task.Delay(350, ct);
+            var merged = await FoodLookup.EnrichFromApiAndMergeAsync(_query, local, ct);
+            if (!ct.IsCancellationRequested)
+            {
+                _foods = merged;
+                _allLocalFoods = await FoodRepo.GetAllAsync(200, ct);
+            }
+        }
+        catch (TaskCanceledException) { }
+        finally
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                _isEnriching = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task HandleBarcodeScannedAsync(string barcode)
+    {
+        var lookup = await FoodLookup.LookupByBarcodeAsync(barcode);
+        if (lookup.Item is not null)
+        {
+            _notice = lookup.FoundLocally
+                ? $"Found \"{lookup.Item.Name}\" in local SQLite database!"
+                : $"Found \"{lookup.Item.Name}\" via Open Food Facts and saved to local SQLite!";
+            _query = lookup.Item.Name;
+            await ReloadAsync();
+        }
+        else
+        {
+            _notice = $"Barcode {barcode} not found. Opening Custom Food form with barcode pre-filled.";
+            _editFood = new FoodItem { Barcode = barcode, Source = FoodSource.Custom };
+            _foodModalOpen = true;
+        }
+    }
+
+    private void OpenNewFoodModal()
+    {
+        _editFood = new FoodItem { Source = FoodSource.Custom, ServingSizeG = 100, ServingDescription = "100g" };
+        _foodModalOpen = true;
+    }
+
+    private async Task SaveCustomFoodAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_editFood.Name)) return;
+        _editFood.Source = FoodSource.Custom;
+        await FoodRepo.UpsertAsync(_editFood);
+        _foodModalOpen = false;
+        _notice = $"Saved \"{_editFood.Name}\" to local SQLite.";
+        await ReloadAsync();
+    }
+
+    private async Task DeleteFoodAsync(Guid id)
+    {
+        await FoodRepo.SoftDeleteAsync(id);
+        await ReloadAsync();
+    }
+
+    private void OpenNewMealModal()
+    {
+        _editMeal = new Meal { DefaultServings = 1 };
+        _selectedIngredientFoodId = string.Empty;
+        _ingredientGrams = 100;
+        _mealModalOpen = true;
+    }
+
+    private void AddIngredientToMeal()
+    {
+        if (!Guid.TryParse(_selectedIngredientFoodId, out var foodId) || _ingredientGrams <= 0) return;
+        var food = _allLocalFoods.FirstOrDefault(f => f.Id == foodId);
+        if (food is null) return;
+
+        var n = food.NutrientsForGrams(_ingredientGrams);
+        _editMeal.Ingredients.Add(new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            FoodItemId = food.Id,
+            FoodNameSnapshot = food.Name,
+            QuantityGrams = _ingredientGrams,
+            CaloriesKcal = n.CaloriesKcal,
+            FatG = n.FatG,
+            SaturatedFatG = n.SaturatedFatG,
+            CarbsG = n.CarbsG,
+            SugarsG = n.SugarsG,
+            FibreG = n.FibreG,
+            ProteinG = n.ProteinG,
+            SaltG = n.SaltG
+        });
+    }
+
+    private async Task SaveMealAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_editMeal.Name) || _editMeal.Ingredients.Count == 0) return;
+        await MealRepo.SaveAsync(_editMeal);
+        _mealModalOpen = false;
+        _notice = $"Saved meal \"{_editMeal.Name}\".";
+        await ReloadAsync();
+    }
+
+    private async Task DeleteMealAsync(Guid id)
+    {
+        await MealRepo.SoftDeleteAsync(id);
+        await ReloadAsync();
+    }
+}

@@ -1,0 +1,259 @@
+@page "/progress"
+@inject IUserProfileRepository ProfileRepo
+@inject IBodyMeasurementRepository BodyRepo
+@inject IFoodLogRepository LogRepo
+@inject DiaryService Diary
+
+<div class="ct-topbar">
+    <div class="ct-topbar-row">
+        <div class="ct-brand">📈 Body & Progress</div>
+        <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
+                @onclick="OpenLogModal">
+            + Log Metrics
+        </button>
+    </div>
+</div>
+
+<div class="ct-page">
+    <!-- Latest Summary Cards -->
+    <div class="ct-grid-3">
+        <div class="ct-card" style="text-align:center; padding:12px 8px;">
+            <div class="ct-stat-lbl">Weight</div>
+            <div class="ct-stat-val" style="font-size:1.1rem; margin-top:4px;">
+                @UnitConverter.FormatWeight(_latest?.WeightKg, _profile.UnitSystem)
+            </div>
+        </div>
+        <div class="ct-card" style="text-align:center; padding:12px 8px;">
+            <div class="ct-stat-lbl">BMI</div>
+            <div class="ct-stat-val" style="font-size:1.1rem; margin-top:4px;">
+                @(_latest?.ComputedBmi?.ToString("0.0") ?? "—")
+            </div>
+            <div style="margin-top:4px;">
+                <span class="ct-badge @BmiBadgeClass(_latest?.ComputedBmi)">
+                    @BodyMetricsCalculator.GetBmiCategory(_latest?.ComputedBmi)
+                </span>
+            </div>
+        </div>
+        <div class="ct-card" style="text-align:center; padding:12px 8px;">
+            <div class="ct-stat-lbl">Body Fat</div>
+            <div class="ct-stat-val" style="font-size:1.1rem; margin-top:4px;">
+                @(_latest?.EffectiveBodyFatPercent is double bf ? $"{bf:0.0}%" : "—")
+            </div>
+            <div class="ct-muted" style="font-size:0.68rem;">
+                @(_latest?.ManualBodyFatPercent is not null ? "Manual / Scale" : _latest?.ComputedBodyFatPercent is not null ? "US Navy est." : "Add tape/scale")
+            </div>
+        </div>
+    </div>
+
+    <!-- Last 14 Days Calories Bar Chart -->
+    <div class="ct-card">
+        <div class="ct-card-header">
+            <h2 class="ct-card-title">Last 14 Days Calories</h2>
+            <span class="ct-muted">Goal: @_profile.DailyCalorieGoal.ToString("0")</span>
+        </div>
+        <div style="display:flex; align-items:flex-end; gap:4px; height:110px; padding-top:12px;">
+            @foreach (var day in _last14Days)
+            {
+                var kcal = _calorieHistory.TryGetValue(day, out var v) ? v : 0;
+                var maxRef = Math.Max(_profile.DailyCalorieGoal * 1.2, _calorieHistory.Values.DefaultIfEmpty(1).Max());
+                var hPct = maxRef > 0 ? Math.Clamp(kcal / maxRef * 100.0, 2, 100) : 2;
+                var barColor = kcal == 0 ? "#e2e8f0" : kcal > _profile.DailyCalorieGoal ? "#ef4444" : "#16a34a";
+
+                <div style="flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;"
+                     title="@day.ToString("dd MMM"): @kcal.ToString("0") kcal">
+                    <div style="width:100%; max-width:20px; height:@hPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:@barColor; border-radius:4px 4px 0 0;"></div>
+                    <span style="font-size:0.62rem; color:var(--ct-text-muted); margin-top:4px;">@day.Day</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Weight & Body Measurements History -->
+    <div class="ct-card">
+        <div class="ct-card-header">
+            <h2 class="ct-card-title">Measurements Log</h2>
+            <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="OpenLogModal">+ Add</button>
+        </div>
+
+        @if (_measurements.Count == 0)
+        {
+            <div class="ct-muted" style="text-align:center; padding:20px 0;">
+                No measurements logged yet. Tap <strong>+ Log Metrics</strong> to track weight, BMI, and body fat %.
+            </div>
+        }
+        else
+        {
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                @foreach (var m in _measurements)
+                {
+                    <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
+                        <div>
+                            <div class="ct-entry-name">
+                                @m.Date.ToString("dd MMM yyyy") • @UnitConverter.FormatWeight(m.WeightKg, _profile.UnitSystem)
+                            </div>
+                            <div class="ct-entry-meta">
+                                BMI @(m.ComputedBmi?.ToString("0.0") ?? "—")
+                                @if (m.EffectiveBodyFatPercent is double entryBf)
+                                {
+                                    <span> • BF @entryBf.ToString("0.0")% (@(m.ManualBodyFatPercent is not null ? "manual" : "US Navy"))</span>
+                                }
+                                @if (m.WaistCm is double w)
+                                {
+                                    <span> • Waist @UnitConverter.FormatLength(w, _profile.UnitSystem)</span>
+                                }
+                            </div>
+                        </div>
+                        <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteMeasurementAsync(m.Id)">🗑️</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (_modalOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="() => _modalOpen = false">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>Log Body Measurements</strong>
+                <button class="ct-icon-btn" @onclick="() => _modalOpen = false">✕</button>
+            </div>
+            <div class="ct-modal-body">
+                @if (_profile.BiologicalSex == BiologicalSex.Unspecified)
+                {
+                    <div class="ct-alert ct-alert-warn" style="margin-bottom:10px;">
+                        Tip: Set your Biological Sex in <strong>Settings</strong> to enable automatic US Navy Body Fat % estimation.
+                    </div>
+                }
+
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Date</label>
+                        <input class="ct-input" type="date" @bind="_entryDate" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_weightInput" />
+                    </div>
+                </div>
+
+                <div class="ct-grid-2">
+                    <div class="ct-field">
+                        <label class="ct-label">Height (@UnitConverter.LengthUnitLabel(_profile.UnitSystem))</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_heightInput" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Manual Body Fat % (smart scale)</label>
+                        <input class="ct-input" type="number" step="0.1" placeholder="Optional" @bind="_manualBfInput" />
+                    </div>
+                </div>
+
+                <div style="font-weight:700; font-size:0.84rem; margin:8px 0 6px;">
+                    Tape Measurements (@UnitConverter.LengthUnitLabel(_profile.UnitSystem)) — for US Navy Body Fat %
+                </div>
+                <div class="ct-grid-3">
+                    <div class="ct-field">
+                        <label class="ct-label">Neck</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_neckInput" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Waist</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_waistInput" />
+                    </div>
+                    <div class="ct-field">
+                        <label class="ct-label">Hip (F)</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_hipInput" />
+                    </div>
+                </div>
+
+                <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:8px;" @onclick="SaveMeasurementAsync">
+                    Save Measurement
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private UserProfile _profile = new();
+    private List<BodyMeasurement> _measurements = new();
+    private BodyMeasurement? _latest;
+    private Dictionary<DateOnly, double> _calorieHistory = new();
+    private List<DateOnly> _last14Days = new();
+
+    private bool _modalOpen;
+    private DateOnly _entryDate = DateOnly.FromDateTime(DateTime.Today);
+    private double? _weightInput;
+    private double? _heightInput;
+    private double? _neckInput;
+    private double? _waistInput;
+    private double? _hipInput;
+    private double? _manualBfInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _profile = await ProfileRepo.GetOrCreateAsync();
+        _measurements = await BodyRepo.GetAllAsync();
+        _latest = _measurements.FirstOrDefault();
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var start = today.AddDays(-13);
+        _last14Days = Enumerable.Range(0, 14).Select(i => start.AddDays(i)).ToList();
+        _calorieHistory = await LogRepo.GetDailyCalorieTotalsAsync(start, today);
+    }
+
+    private void OpenLogModal()
+    {
+        _entryDate = DateOnly.FromDateTime(DateTime.Today);
+        var isMetric = _profile.UnitSystem == UnitSystem.Metric;
+        _weightInput = _latest?.WeightKg is double w ? (isMetric ? w : UnitConverter.KgToLbs(w)) : null;
+        var hCm = _latest?.HeightCm ?? _profile.HeightCm;
+        _heightInput = hCm is double h ? (isMetric ? h : UnitConverter.CmToInches(h)) : null;
+        _neckInput = null;
+        _waistInput = null;
+        _hipInput = null;
+        _manualBfInput = null;
+        _modalOpen = true;
+    }
+
+    private async Task SaveMeasurementAsync()
+    {
+        var isMetric = _profile.UnitSystem == UnitSystem.Metric;
+        var m = new BodyMeasurement
+        {
+            Id = Guid.NewGuid(),
+            Date = _entryDate,
+            WeightKg = _weightInput.HasValue ? (isMetric ? _weightInput : UnitConverter.LbsToKg(_weightInput.Value)) : null,
+            HeightCm = _heightInput.HasValue ? (isMetric ? _heightInput : UnitConverter.InchesToCm(_heightInput.Value)) : null,
+            NeckCm = _neckInput.HasValue ? (isMetric ? _neckInput : UnitConverter.InchesToCm(_neckInput.Value)) : null,
+            WaistCm = _waistInput.HasValue ? (isMetric ? _waistInput : UnitConverter.InchesToCm(_waistInput.Value)) : null,
+            HipCm = _hipInput.HasValue ? (isMetric ? _hipInput : UnitConverter.InchesToCm(_hipInput.Value)) : null,
+            ManualBodyFatPercent = _manualBfInput
+        };
+
+        await Diary.SaveBodyMeasurementAsync(m);
+        _modalOpen = false;
+        await ReloadAsync();
+    }
+
+    private async Task DeleteMeasurementAsync(Guid id)
+    {
+        await BodyRepo.SoftDeleteAsync(id);
+        await ReloadAsync();
+    }
+
+    private static string BmiBadgeClass(double? bmi) => bmi switch
+    {
+        null => "ct-badge-gray",
+        < 18.5 => "ct-badge-blue",
+        < 25.0 => "ct-badge-green",
+        < 30.0 => "ct-badge-amber",
+        _ => "ct-badge-red"
+    };
+}

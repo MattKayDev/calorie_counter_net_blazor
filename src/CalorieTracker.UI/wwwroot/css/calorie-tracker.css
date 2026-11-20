@@ -1,0 +1,638 @@
+:root {
+    --ct-bg: #f3f6f4;
+    --ct-surface: #ffffff;
+    --ct-surface-muted: #f8faf9;
+    --ct-border: #e2e8f0;
+    --ct-text: #0f172a;
+    --ct-text-muted: #64748b;
+    --ct-green: #16a34a;
+    --ct-green-light: #dcfce7;
+    --ct-green-dark: #15803d;
+    --ct-teal: #0d9488;
+    --ct-amber: #f59e0b;
+    --ct-red: #ef4444;
+    --ct-red-light: #fee2e2;
+    --ct-blue: #2563eb;
+    --ct-purple: #7c3aed;
+    --ct-radius: 16px;
+    --ct-radius-sm: 10px;
+    --ct-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--ct-bg);
+    color: var(--ct-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+}
+
+.ct-shell {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--ct-bg);
+    padding-bottom: 84px;
+    position: relative;
+}
+
+.ct-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+    color: #fff;
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(22, 163, 74, 0.22);
+}
+
+.ct-topbar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ct-brand {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ct-page {
+    padding: 14px 14px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.ct-card {
+    background: var(--ct-surface);
+    border-radius: var(--ct-radius);
+    padding: 16px;
+    box-shadow: var(--ct-shadow);
+    border: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.ct-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.ct-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ct-muted {
+    color: var(--ct-text-muted);
+    font-size: 0.84rem;
+}
+
+/* Date navigation bar */
+.ct-datebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 12px;
+    padding: 4px;
+    margin-top: 10px;
+}
+
+.ct-datebtn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 8px 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ct-datebtn:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* Calorie Ring Summary */
+.ct-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.ct-stat-col {
+    text-align: center;
+}
+
+.ct-stat-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.ct-stat-lbl {
+    font-size: 0.75rem;
+    color: var(--ct-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+}
+
+.ct-ring-wrap {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ct-ring-center {
+    position: absolute;
+    text-align: center;
+}
+
+.ct-ring-kcal {
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.05;
+}
+
+.ct-ring-sub {
+    font-size: 0.72rem;
+    color: var(--ct-text-muted);
+    font-weight: 600;
+}
+
+/* Macro & Nutrient Bars */
+.ct-macro-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ct-border);
+}
+
+.ct-macro-pill {
+    text-align: center;
+}
+
+.ct-macro-name {
+    font-size: 0.72rem;
+    color: var(--ct-text-muted);
+    font-weight: 600;
+}
+
+.ct-macro-val {
+    font-size: 0.86rem;
+    font-weight: 700;
+    margin: 2px 0 4px;
+}
+
+.ct-bar-track {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.ct-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.25s ease;
+}
+
+.ct-nutrient-list {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--ct-border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ct-nutrient-item {
+    display: grid;
+    grid-template-columns: 95px 1fr 90px;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+
+/* Meal Slot Cards */
+.ct-slot-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.ct-slot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 14px;
+    background: var(--ct-surface);
+    cursor: pointer;
+}
+
+.ct-slot-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ct-slot-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--ct-green-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+}
+
+.ct-slot-name {
+    font-weight: 700;
+    font-size: 0.96rem;
+}
+
+.ct-slot-kcal {
+    font-size: 0.8rem;
+    color: var(--ct-text-muted);
+}
+
+.ct-slot-entries {
+    border-top: 1px solid var(--ct-border);
+    background: var(--ct-surface-muted);
+}
+
+.ct-entry-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.ct-entry-row:last-child {
+    border-bottom: none;
+}
+
+.ct-entry-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+
+.ct-entry-meta {
+    font-size: 0.76rem;
+    color: var(--ct-text-muted);
+}
+
+.ct-entry-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.ct-entry-kcal {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--ct-text);
+}
+
+/* Buttons */
+.ct-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+}
+
+.ct-btn:active {
+    transform: scale(0.98);
+}
+
+.ct-btn-primary {
+    background: var(--ct-green);
+    color: #fff;
+}
+
+.ct-btn-primary:hover {
+    background: var(--ct-green-dark);
+}
+
+.ct-btn-soft {
+    background: var(--ct-green-light);
+    color: var(--ct-green-dark);
+}
+
+.ct-btn-outline {
+    background: var(--ct-surface);
+    color: var(--ct-text);
+    border: 1px solid var(--ct-border);
+}
+
+.ct-btn-danger {
+    background: var(--ct-red-light);
+    color: var(--ct-red);
+}
+
+.ct-btn-sm {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+}
+
+.ct-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--ct-text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.ct-icon-btn:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--ct-text);
+}
+
+/* Forms */
+.ct-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.ct-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ct-text-muted);
+}
+
+.ct-input, .ct-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--ct-border);
+    background: #fff;
+    color: var(--ct-text);
+    font-size: 0.92rem;
+    outline: none;
+}
+
+.ct-input:focus, .ct-select:focus {
+    border-color: var(--ct-green);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+
+.ct-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.ct-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+/* Segmented tabs */
+.ct-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #e2e8f0;
+    border-radius: 12px;
+    padding: 3px;
+    gap: 4px;
+}
+
+.ct-tab {
+    border: none;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: var(--ct-text-muted);
+    cursor: pointer;
+}
+
+.ct-tab.active {
+    background: #fff;
+    color: var(--ct-green-dark);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+/* Badges */
+.ct-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.ct-badge-green { background: var(--ct-green-light); color: var(--ct-green-dark); }
+.ct-badge-blue { background: #dbeafe; color: #1d4ed8; }
+.ct-badge-amber { background: #fef3c7; color: #b45309; }
+.ct-badge-red { background: var(--ct-red-light); color: #b91c1c; }
+.ct-badge-gray { background: #e2e8f0; color: #475569; }
+
+/* Bottom Navigation */
+.ct-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 520px;
+    background: #ffffff;
+    border-top: 1px solid var(--ct-border);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.06);
+}
+
+.ct-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-decoration: none;
+    color: var(--ct-text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 2px;
+    border-radius: 10px;
+}
+
+.ct-nav-item.active {
+    color: var(--ct-green);
+}
+
+.ct-nav-icon {
+    font-size: 1.25rem;
+    line-height: 1.1;
+}
+
+/* Modals / Bottom Sheets */
+.ct-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+@media (min-width: 560px) {
+    .ct-modal-backdrop {
+        align-items: center;
+        padding: 16px;
+    }
+}
+
+.ct-modal {
+    background: #fff;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.2);
+}
+
+@media (min-width: 560px) {
+    .ct-modal {
+        border-radius: 20px;
+    }
+}
+
+.ct-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--ct-border);
+}
+
+.ct-modal-body {
+    padding: 14px 16px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Calendar Grid */
+.ct-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.ct-cal-dow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--ct-text-muted);
+    padding: 4px 0;
+}
+
+.ct-cal-day {
+    border: 1px solid transparent;
+    background: var(--ct-surface-muted);
+    border-radius: 10px;
+    padding: 6px 2px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 48px;
+    justify-content: center;
+}
+
+.ct-cal-day:hover {
+    border-color: var(--ct-green);
+}
+
+.ct-cal-day.selected {
+    background: var(--ct-green);
+    color: #fff;
+}
+
+.ct-cal-day.today {
+    border-color: var(--ct-teal);
+}
+
+.ct-cal-kcal {
+    font-size: 0.64rem;
+    font-weight: 700;
+    margin-top: 2px;
+    opacity: 0.85;
+}
+
+/* Toast / Status Banner */
+.ct-alert {
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    font-weight: 500;
+}
+
+.ct-alert-info { background: #eff6ff; color: #1e40af; }
+.ct-alert-success { background: var(--ct-green-light); color: var(--ct-green-dark); }
+.ct-alert-warn { background: #fef3c7; color: #92400e; }
+.ct-alert-error { background: var(--ct-red-light); color: #991b1b; }
+
+.ct-scanner-box {
+    width: 100%;
+    min-height: 240px;
+    background: #0f172a;
+    border-radius: 12px;
+    overflow: hidden;
+}

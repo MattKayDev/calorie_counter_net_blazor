@@ -1,0 +1,199 @@
+@page "/settings"
+@inject IUserProfileRepository ProfileRepo
+@inject IMealSlotRepository SlotRepo
+@inject IDatabaseBackupService BackupService
+@inject IFileDownloadService FileDownload
+
+<div class="ct-topbar">
+    <div class="ct-topbar-row">
+        <div class="ct-brand">⚙️ Settings & Data</div>
+    </div>
+</div>
+
+<div class="ct-page">
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="ct-alert ct-alert-success">@_status</div>
+    }
+
+    <!-- Goals & Units -->
+    <div class="ct-card">
+        <h2 class="ct-card-title" style="margin-bottom:12px;">Daily Goals & Profile</h2>
+
+        <div class="ct-grid-2">
+            <div class="ct-field">
+                <label class="ct-label">Display Units</label>
+                <select class="ct-select" @bind="_profile.UnitSystem">
+                    <option value="@UnitSystem.Metric">Metric (kg, cm)</option>
+                    <option value="@UnitSystem.UkImperial">UK Imperial (st/lb, ft/in)</option>
+                    <option value="@UnitSystem.UsImperial">US Imperial (lbs, ft/in)</option>
+                </select>
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Biological Sex (US Navy BF%)</label>
+                <select class="ct-select" @bind="_profile.BiologicalSex">
+                    <option value="@BiologicalSex.Unspecified">Not set</option>
+                    <option value="@BiologicalSex.Male">Male</option>
+                    <option value="@BiologicalSex.Female">Female</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="ct-grid-2">
+            <div class="ct-field">
+                <label class="ct-label">Daily Calorie Goal (kcal)</label>
+                <input class="ct-input" type="number" step="50" @bind="_profile.DailyCalorieGoal" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Height (cm)</label>
+                <input class="ct-input" type="number" step="0.5" @bind="_profile.HeightCm" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Protein Goal (g)</label>
+                <input class="ct-input" type="number" @bind="_profile.ProteinGoalG" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Carbs Goal (g)</label>
+                <input class="ct-input" type="number" @bind="_profile.CarbsGoalG" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Fat Goal (g)</label>
+                <input class="ct-input" type="number" @bind="_profile.FatGoalG" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Saturated Fat Max (g)</label>
+                <input class="ct-input" type="number" @bind="_profile.SaturatedFatGoalG" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Sugars Max (g)</label>
+                <input class="ct-input" type="number" @bind="_profile.SugarGoalG" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Salt Max (g)</label>
+                <input class="ct-input" type="number" step="0.5" @bind="_profile.SaltGoalG" />
+            </div>
+            <div class="ct-field">
+                <label class="ct-label">Fibre Goal (g)</label>
+                <input class="ct-input" type="number" @bind="_profile.FibreGoalG" />
+            </div>
+        </div>
+
+        <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:6px;" @onclick="SaveProfileAsync">
+            Save Goals & Preferences
+        </button>
+    </div>
+
+    <!-- Custom Meal Slots -->
+    <div class="ct-card">
+        <h2 class="ct-card-title" style="margin-bottom:8px;">Meal Times / Slots</h2>
+        <div class="ct-muted" style="margin-bottom:10px;">
+            Customize when you log food (e.g. Breakfast, Lunch, Dinner, Snacks, Pre-Workout).
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+            @foreach (var slot in _slots)
+            {
+                <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:10px;">
+                    <div>
+                        <span style="margin-right:6px;">@slot.Icon</span>
+                        <strong>@slot.Name</strong>
+                    </div>
+                    <button class="ct-icon-btn" title="Archive slot" @onclick="() => ArchiveSlotAsync(slot.Id)">🗑️</button>
+                </div>
+            }
+        </div>
+
+        <div style="display:flex; gap:8px;">
+            <input class="ct-input" style="width:60px; text-align:center;" @bind="_newSlotIcon" />
+            <input class="ct-input" placeholder="New meal time (e.g. Pre-Workout)" @bind="_newSlotName" />
+            <button class="ct-btn ct-btn-soft" @onclick="AddSlotAsync">Add</button>
+        </div>
+    </div>
+
+    <!-- SQLite Backup & Restore -->
+    <div class="ct-card">
+        <h2 class="ct-card-title" style="margin-bottom:8px;">SQLite Database Backup</h2>
+        <div class="ct-muted" style="margin-bottom:12px;">
+            All your data is stored locally in a real SQLite database on this device. Export a <code>.sqlite</code> backup anytime or restore on another device.
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="ct-btn ct-btn-primary" @onclick="ExportBackupAsync">
+                ⬇ Export .sqlite Backup
+            </button>
+
+            <label class="ct-btn ct-btn-outline" style="cursor:pointer;">
+                ⬆ Restore .sqlite File
+                <InputFile OnChange="ImportBackupAsync" accept=".sqlite,.db" style="display:none;" />
+            </label>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserProfile _profile = new();
+    private List<MealSlot> _slots = new();
+    private string _newSlotName = string.Empty;
+    private string _newSlotIcon = "🥪";
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _profile = await ProfileRepo.GetOrCreateAsync();
+        _slots = await SlotRepo.GetAllAsync();
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        await ProfileRepo.SaveAsync(_profile);
+        _status = "Goals and preferences saved!";
+    }
+
+    private async Task AddSlotAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newSlotName)) return;
+        var nextOrder = _slots.Count > 0 ? _slots.Max(s => s.SortOrder) + 1 : 0;
+        await SlotRepo.SaveAsync(new MealSlot
+        {
+            Id = Guid.NewGuid(),
+            Name = _newSlotName.Trim(),
+            Icon = string.IsNullOrWhiteSpace(_newSlotIcon) ? "🍽️" : _newSlotIcon.Trim(),
+            SortOrder = nextOrder
+        });
+        _newSlotName = string.Empty;
+        _status = "Added new meal slot.";
+        await ReloadAsync();
+    }
+
+    private async Task ArchiveSlotAsync(Guid id)
+    {
+        await SlotRepo.DeleteOrArchiveAsync(id);
+        _status = "Meal slot removed from active diary (past entries preserved).";
+        await ReloadAsync();
+    }
+
+    private async Task ExportBackupAsync()
+    {
+        var bytes = await BackupService.ExportSqliteBytesAsync();
+        var fileName = $"calorietracker-backup-{DateTime.Now:yyyyMMdd-HHmm}.sqlite";
+        await FileDownload.DownloadBytesAsync(fileName, "application/x-sqlite3", bytes);
+        _status = $"Exported {fileName} ({bytes.Length / 1024.0:0.0} KB).";
+    }
+
+    private async Task ImportBackupAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        await using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        await BackupService.ImportSqliteBytesAsync(ms.ToArray());
+        await ReloadAsync();
+        _status = "SQLite database restored successfully!";
+    }
+}

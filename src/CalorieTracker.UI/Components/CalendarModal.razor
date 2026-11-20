@@ -1,0 +1,115 @@
+@inject IFoodLogRepository LogRepo
+
+@if (IsOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="Close">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <button class="ct-icon-btn" @onclick="PrevMonth">◀</button>
+                <strong>@_viewMonth.ToString("MMMM yyyy")</strong>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    <button class="ct-icon-btn" @onclick="NextMonth">▶</button>
+                    <button class="ct-icon-btn" @onclick="Close">✕</button>
+                </div>
+            </div>
+            <div class="ct-modal-body">
+                <div class="ct-cal-grid" style="margin-bottom:6px;">
+                    @foreach (var d in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+                    {
+                        <div class="ct-cal-dow">@d</div>
+                    }
+                </div>
+                <div class="ct-cal-grid">
+                    @for (var i = 0; i < LeadingBlanks; i++)
+                    {
+                        <div></div>
+                    }
+                    @for (var day = 1; day <= DaysInMonth; day++)
+                    {
+                        var date = new DateOnly(_viewMonth.Year, _viewMonth.Month, day);
+                        var hasKcal = _totals.TryGetValue(date, out var kcal) && kcal > 0;
+                        var isSelected = date == SelectedDate;
+                        var isToday = date == DateOnly.FromDateTime(DateTime.Today);
+                        var css = $"ct-cal-day {(isSelected ? "selected" : "")} {(isToday ? "today" : "")}";
+
+                        <button class="@css" @onclick="() => PickDate(date)">
+                            <span style="font-weight:700; font-size:0.86rem;">@day</span>
+                            @if (hasKcal)
+                            {
+                                <span class="ct-cal-kcal" style="color:@(isSelected ? "#fff" : kcal > DailyGoal ? "var(--ct-red)" : "var(--ct-green-dark)")">
+                                    @kcal.ToString("0")
+                                </span>
+                            }
+                        </button>
+                    }
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+                    <span class="ct-muted">Numbers show daily kcal logged</span>
+                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => PickDate(DateOnly.FromDateTime(DateTime.Today))">
+                        Jump to Today
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public DateOnly SelectedDate { get; set; }
+    [Parameter] public double DailyGoal { get; set; } = 2000;
+    [Parameter] public EventCallback<DateOnly> OnDateSelected { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private DateOnly _viewMonth;
+    private Dictionary<DateOnly, double> _totals = new();
+    private bool _wasOpen;
+
+    private int DaysInMonth => DateTime.DaysInMonth(_viewMonth.Year, _viewMonth.Month);
+    private int LeadingBlanks
+    {
+        get
+        {
+            var first = new DateOnly(_viewMonth.Year, _viewMonth.Month, 1);
+            var dow = (int)first.DayOfWeek; // Sunday = 0
+            return dow == 0 ? 6 : dow - 1;  // Monday-first grid
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _viewMonth = new DateOnly(SelectedDate.Year, SelectedDate.Month, 1);
+            await LoadMonthAsync();
+        }
+        _wasOpen = IsOpen;
+    }
+
+    private async Task LoadMonthAsync()
+    {
+        var start = new DateOnly(_viewMonth.Year, _viewMonth.Month, 1);
+        var end = new DateOnly(_viewMonth.Year, _viewMonth.Month, DaysInMonth);
+        _totals = await LogRepo.GetDailyCalorieTotalsAsync(start, end);
+    }
+
+    private async Task PrevMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(-1);
+        await LoadMonthAsync();
+    }
+
+    private async Task NextMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(1);
+        await LoadMonthAsync();
+    }
+
+    private async Task PickDate(DateOnly date)
+    {
+        await OnDateSelected.InvokeAsync(date);
+        await Close();
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+}

@@ -1,0 +1,99 @@
+@inject IBarcodeScannerService Scanner
+@implements IAsyncDisposable
+
+@if (IsOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="CloseAsync">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>📷 Scan Food Barcode</strong>
+                <button class="ct-icon-btn" @onclick="CloseAsync">✕</button>
+            </div>
+            <div class="ct-modal-body">
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <div class="ct-alert ct-alert-warn" style="margin-bottom:10px;">
+                        @_error
+                    </div>
+                }
+
+                <div id="@_elementId" class="ct-scanner-box"></div>
+
+                <div style="margin-top:14px;">
+                    <label class="ct-label">Or enter barcode number manually</label>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <input class="ct-input" placeholder="e.g. 5000159461122" @bind="_manualCode" />
+                        <button class="ct-btn ct-btn-primary" @onclick="SubmitManualAsync">Look up</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<string> OnBarcodeScanned { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private readonly string _elementId = $"barcode-reader-{Guid.NewGuid():N}";
+    private bool _started;
+    private string _manualCode = string.Empty;
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpen && !_started)
+        {
+            _started = true;
+            _error = null;
+            try
+            {
+                await Scanner.StartAsync(_elementId, async code =>
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await OnBarcodeScanned.InvokeAsync(code);
+                        await CloseAsync();
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                _error = $"Camera unavailable ({ex.Message}). You can type the barcode below instead.";
+                StateHasChanged();
+            }
+        }
+        else if (!IsOpen && _started)
+        {
+            _started = false;
+            await Scanner.StopAsync();
+        }
+    }
+
+    private async Task SubmitManualAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_manualCode)) return;
+        var code = _manualCode.Trim();
+        _manualCode = string.Empty;
+        await Scanner.StopAsync();
+        _started = false;
+        await OnBarcodeScanned.InvokeAsync(code);
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        _started = false;
+        await Scanner.StopAsync();
+        await OnClose.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_started)
+        {
+            await Scanner.StopAsync();
+        }
+    }
+}

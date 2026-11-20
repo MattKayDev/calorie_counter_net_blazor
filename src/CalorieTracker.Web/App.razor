@@ -1,0 +1,19 @@
+﻿<Router AppAssembly="@typeof(App).Assembly"
+        AdditionalAssemblies="new[] { typeof(CalorieTracker.UI.Pages.DiaryPage).Assembly }">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(CalorieTracker.UI.Layout.AppLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(CalorieTracker.UI.Layout.AppLayout)">
+            <div class="ct-page">
+                <div class="ct-card" style="text-align:center; padding:32px;">
+                    <h3>Page not found</h3>
+                    <p class="ct-muted">That route doesn't exist.</p>
+                    <a class="ct-btn ct-btn-primary" href="">Back to Diary</a>
+                </div>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

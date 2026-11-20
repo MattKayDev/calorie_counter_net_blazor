@@ -1,0 +1,24 @@
+@inherits LayoutComponentBase
+
+<div class="ct-shell">
+    @Body
+
+    <nav class="ct-bottom-nav" aria-label="Main navigation">
+        <NavLink class="ct-nav-item" href="" Match="NavLinkMatch.All">
+            <span class="ct-nav-icon">📓</span>
+            <span>Diary</span>
+        </NavLink>
+        <NavLink class="ct-nav-item" href="foods">
+            <span class="ct-nav-icon">🥗</span>
+            <span>Foods</span>
+        </NavLink>
+        <NavLink class="ct-nav-item" href="progress">
+            <span class="ct-nav-icon">📈</span>
+            <span>Progress</span>
+        </NavLink>
+        <NavLink class="ct-nav-item" href="settings">
+            <span class="ct-nav-icon">⚙️</span>
+            <span>Settings</span>
+        </NavLink>
+    </nav>
+</div>

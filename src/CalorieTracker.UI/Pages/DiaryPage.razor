@@ -1,0 +1,224 @@
+@page "/"
+@inject IUserProfileRepository ProfileRepo
+@inject IMealSlotRepository SlotRepo
+@inject IFoodLogRepository LogRepo
+
+<div class="ct-topbar">
+    <div class="ct-topbar-row">
+        <div class="ct-brand">🍏 Calorie Diary</div>
+        <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
+                @onclick="() => _calendarOpen = true">
+            📅 History
+        </button>
+    </div>
+
+    <div class="ct-datebar">
+        <button class="ct-datebtn" @onclick="PrevDay">◀</button>
+        <button class="ct-datebtn" @onclick="() => _calendarOpen = true">
+            @FormatDateHeading(_selectedDate)
+        </button>
+        <button class="ct-datebtn" @onclick="NextDay">▶</button>
+    </div>
+</div>
+
+<div class="ct-page">
+    @if (_loading)
+    {
+        <div class="ct-card" style="text-align:center; padding:32px;">
+            <div class="ct-muted">Loading your SQLite diary...</div>
+        </div>
+    }
+    else
+    {
+        <!-- Daily Calorie Ring & Macro Summary Card -->
+        <div class="ct-card">
+            <div class="ct-summary-grid">
+                <div class="ct-stat-col">
+                    <div class="ct-stat-val">@_profile.DailyCalorieGoal.ToString("0")</div>
+                    <div class="ct-stat-lbl">Goal</div>
+                </div>
+
+                <CalorieRing Consumed="_totals.CaloriesKcal" Goal="_profile.DailyCalorieGoal" />
+
+                <div class="ct-stat-col">
+                    <div class="ct-stat-val" style="color:var(--ct-green-dark)">@_totals.CaloriesKcal.ToString("0")</div>
+                    <div class="ct-stat-lbl">Eaten</div>
+                </div>
+            </div>
+
+            <div class="ct-macro-row">
+                @RenderMacroPill("Carbs", _totals.CarbsG, _profile.CarbsGoalG, "#2563eb")
+                @RenderMacroPill("Protein", _totals.ProteinG, _profile.ProteinGoalG, "#16a34a")
+                @RenderMacroPill("Fat", _totals.FatG, _profile.FatGoalG, "#f59e0b")
+                @RenderMacroPill("Sugars", _totals.SugarsG, _profile.SugarGoalG, "#ec4899")
+            </div>
+
+            <div style="text-align:center; margin-top:10px;">
+                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
+                    @(_showAllNutrients ? "Hide full nutrients ▲" : "All nutrients (Sat Fat, Salt, Fibre) ▼")
+                </button>
+            </div>
+
+            @if (_showAllNutrients)
+            {
+                <div class="ct-nutrient-list">
+                    @RenderNutrientRow("Saturated Fat", _totals.SaturatedFatG, _profile.SaturatedFatGoalG, "g", "#f97316")
+                    @RenderNutrientRow("Sugars", _totals.SugarsG, _profile.SugarGoalG, "g", "#ec4899")
+                    @RenderNutrientRow("Fibre", _totals.FibreG, _profile.FibreGoalG, "g", "#10b981")
+                    @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
+                </div>
+            }
+        </div>
+
+        <!-- Meal Slot Cards -->
+        @foreach (var slot in _slots)
+        {
+            var slotEntries = _entries.Where(e => e.MealSlotId == slot.Id).ToList();
+            var slotKcal = slotEntries.Sum(e => e.CaloriesKcal);
+
+            <div class="ct-card ct-slot-card">
+                <div class="ct-slot-head">
+                    <div class="ct-slot-left">
+                        <div class="ct-slot-icon">@slot.Icon</div>
+                        <div>
+                            <div class="ct-slot-name">@slot.Name</div>
+                            <div class="ct-slot-kcal">
+                                @(slotEntries.Count == 0 ? "Nothing logged yet" : $"{slotKcal:0} kcal • {slotEntries.Count} item{(slotEntries.Count == 1 ? "" : "s")}")
+                            </div>
+                        </div>
+                    </div>
+                    <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => OpenAddModal(slot)">
+                        + Add
+                    </button>
+                </div>
+
+                @if (slotEntries.Count > 0)
+                {
+                    <div class="ct-slot-entries">
+                        @foreach (var entry in slotEntries)
+                        {
+                            <div class="ct-entry-row">
+                                <div>
+                                    <div class="ct-entry-name">@entry.NameSnapshot</div>
+                                    <div class="ct-entry-meta">
+                                        @entry.ServingLabel • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
+                                    </div>
+                                </div>
+                                <div class="ct-entry-right">
+                                    <span class="ct-entry-kcal">@entry.CaloriesKcal.ToString("0") kcal</span>
+                                    <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)">🗑️</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<AddFoodModal IsOpen="_addModalOpen"
+              Date="_selectedDate"
+              MealSlotId="_activeSlotId"
+              MealSlotName="@_activeSlotName"
+              OnLogged="LoadDayAsync"
+              OnClose="() => _addModalOpen = false" />
+
+<CalendarModal IsOpen="_calendarOpen"
+               SelectedDate="_selectedDate"
+               DailyGoal="_profile.DailyCalorieGoal"
+               OnDateSelected="OnDatePickedAsync"
+               OnClose="() => _calendarOpen = false" />
+
+@code {
+    private DateOnly _selectedDate = DateOnly.FromDateTime(DateTime.Today);
+    private UserProfile _profile = new();
+    private List<MealSlot> _slots = new();
+    private List<FoodLogEntry> _entries = new();
+    private NutrientProfile _totals = NutrientProfile.Zero;
+    private bool _loading = true;
+    private bool _showAllNutrients;
+    private bool _calendarOpen;
+    private bool _addModalOpen;
+    private Guid _activeSlotId;
+    private string _activeSlotName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDayAsync();
+    }
+
+    private async Task LoadDayAsync()
+    {
+        _loading = true;
+        _profile = await ProfileRepo.GetOrCreateAsync();
+        _slots = await SlotRepo.GetAllAsync();
+        _entries = await LogRepo.GetByDateAsync(_selectedDate);
+        _totals = DiaryService.SumNutrients(_entries);
+        _loading = false;
+    }
+
+    private async Task PrevDay()
+    {
+        _selectedDate = _selectedDate.AddDays(-1);
+        await LoadDayAsync();
+    }
+
+    private async Task NextDay()
+    {
+        _selectedDate = _selectedDate.AddDays(1);
+        await LoadDayAsync();
+    }
+
+    private async Task OnDatePickedAsync(DateOnly date)
+    {
+        _selectedDate = date;
+        await LoadDayAsync();
+    }
+
+    private void OpenAddModal(MealSlot slot)
+    {
+        _activeSlotId = slot.Id;
+        _activeSlotName = slot.Name;
+        _addModalOpen = true;
+    }
+
+    private async Task DeleteEntryAsync(Guid id)
+    {
+        await LogRepo.SoftDeleteAsync(id);
+        await LoadDayAsync();
+    }
+
+    private static string FormatDateHeading(DateOnly d)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        if (d == today) return $"Today, {d:dd MMM}";
+        if (d == today.AddDays(-1)) return $"Yesterday, {d:dd MMM}";
+        if (d == today.AddDays(1)) return $"Tomorrow, {d:dd MMM}";
+        return d.ToString("ddd, dd MMM yyyy");
+    }
+
+    private RenderFragment RenderMacroPill(string name, double value, double goal, string color) => __builder =>
+    {
+        var pct = goal > 0 ? Math.Clamp(value / goal * 100.0, 0, 100) : 0;
+        <div class="ct-macro-pill">
+            <div class="ct-macro-name">@name</div>
+            <div class="ct-macro-val">@value.ToString("0")<span style="font-weight:400; color:var(--ct-text-muted)">/@goal.ToString("0")g</span></div>
+            <div class="ct-bar-track">
+                <div class="ct-bar-fill" style="width:@pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:@color;"></div>
+            </div>
+        </div>
+    };
+
+    private RenderFragment RenderNutrientRow(string label, double value, double goal, string unit, string color) => __builder =>
+    {
+        var pct = goal > 0 ? Math.Clamp(value / goal * 100.0, 0, 100) : 0;
+        <div class="ct-nutrient-item">
+            <span style="font-weight:600;">@label</span>
+            <div class="ct-bar-track">
+                <div class="ct-bar-fill" style="width:@pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%; background:@color;"></div>
+            </div>
+            <span style="text-align:right; color:var(--ct-text-muted);">@value.ToString("0.##") / @goal.ToString("0.#")@unit</span>
+        </div>
+    };
+}

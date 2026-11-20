@@ -1,0 +1,287 @@
+@inject IFoodLookupService FoodLookup
+@inject IMealRepository MealRepo
+@inject DiaryService Diary
+
+@if (IsOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="Close">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>Add to @MealSlotName</strong>
+                <button class="ct-icon-btn" @onclick="Close">✕</button>
+            </div>
+            <div class="ct-modal-body">
+                @if (_selectedFood is not null)
+                {
+                    <div>
+                        <button class="ct-btn ct-btn-outline ct-btn-sm" style="margin-bottom:10px;" @onclick="() => _selectedFood = null">
+                            ← Back to results
+                        </button>
+                        <div class="ct-card" style="background:var(--ct-surface-muted); box-shadow:none;">
+                            <div style="font-weight:700; font-size:1rem;">@_selectedFood.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(_selectedFood.Brand))
+                            {
+                                <div class="ct-muted">@_selectedFood.Brand</div>
+                            }
+                            <div style="margin-top:10px;" class="ct-grid-2">
+                                <div class="ct-field">
+                                    <label class="ct-label">Quantity (grams)</label>
+                                    <input class="ct-input" type="number" step="1" min="1" @bind="_grams" @bind:event="oninput" />
+                                </div>
+                                <div class="ct-field">
+                                    <label class="ct-label">Quick portion</label>
+                                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                        <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => _grams = _selectedFood.ServingSizeG">
+                                            1 srv (@_selectedFood.ServingSizeG.ToString("0")g)
+                                        </button>
+                                        <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _grams = 100">100g</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @{
+                                var preview = _selectedFood.NutrientsForGrams(_grams);
+                            }
+                            <div class="ct-macro-row" style="margin-top:10px;">
+                                <div class="ct-macro-pill">
+                                    <div class="ct-macro-name">Calories</div>
+                                    <div class="ct-macro-val" style="color:var(--ct-green-dark)">@preview.CaloriesKcal.ToString("0") kcal</div>
+                                </div>
+                                <div class="ct-macro-pill">
+                                    <div class="ct-macro-name">Protein</div>
+                                    <div class="ct-macro-val">@preview.ProteinG.ToString("0.0")g</div>
+                                </div>
+                                <div class="ct-macro-pill">
+                                    <div class="ct-macro-name">Carbs</div>
+                                    <div class="ct-macro-val">@preview.CarbsG.ToString("0.0")g</div>
+                                </div>
+                                <div class="ct-macro-pill">
+                                    <div class="ct-macro-name">Fat</div>
+                                    <div class="ct-macro-val">@preview.FatG.ToString("0.0")g</div>
+                                </div>
+                            </div>
+                            <div class="ct-muted" style="text-align:center; margin-top:6px;">
+                                Sat. Fat: @preview.SaturatedFatG.ToString("0.0")g • Sugars: @preview.SugarsG.ToString("0.0")g • Fibre: @preview.FibreG.ToString("0.0")g • Salt: @preview.SaltG.ToString("0.00")g
+                            </div>
+                        </div>
+
+                        <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:12px;" @onclick="ConfirmLogFoodAsync">
+                            Add @_grams.ToString("0")g to @MealSlotName
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="ct-tabs" style="margin-bottom:12px;">
+                        <button class="ct-tab @(_tab == 0 ? "active" : "")" @onclick="() => _tab = 0">Foods & Scan</button>
+                        <button class="ct-tab @(_tab == 1 ? "active" : "")" @onclick="() => _tab = 1">Saved Meals (@_meals.Count)</button>
+                    </div>
+
+                    @if (_tab == 0)
+                    {
+                        <div style="display:flex; gap:8px; margin-bottom:10px;">
+                            <input class="ct-input" placeholder="Search food name or brand..."
+                                   value="@_searchQuery" @oninput="OnSearchInput" />
+                            <button class="ct-btn ct-btn-soft" title="Scan barcode" @onclick="() => _scannerOpen = true">
+                                📷
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                        {
+                            <div class="ct-alert ct-alert-info" style="margin-bottom:10px;">@_statusMessage</div>
+                        }
+
+                        @if (_isEnriching)
+                        {
+                            <div class="ct-muted" style="margin-bottom:8px;">
+                                Showing local matches • Searching Open Food Facts to enrich local library...
+                            </div>
+                        }
+
+                        @if (_results.Count == 0 && !_isEnriching)
+                        {
+                            <div class="ct-muted" style="text-align:center; padding:24px 8px;">
+                                Type a food name to search locally + Open Food Facts, or tap 📷 to scan a barcode.
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                @foreach (var item in _results)
+                                {
+                                    <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px; cursor:pointer;"
+                                         @onclick="() => SelectFood(item)">
+                                        <div>
+                                            <div class="ct-entry-name">@item.Name</div>
+                                            <div class="ct-entry-meta">
+                                                @(string.IsNullOrWhiteSpace(item.Brand) ? (item.Source == FoodSource.Custom ? "Custom food" : "Cached") : item.Brand)
+                                                • @item.CaloriesPer100G.ToString("0") kcal / 100g
+                                            </div>
+                                        </div>
+                                        <span class="ct-badge ct-badge-green">Select</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        @if (_meals.Count == 0)
+                        {
+                            <div class="ct-muted" style="text-align:center; padding:24px 8px;">
+                                No saved meals yet. Create one in the <strong>Foods</strong> tab!
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                @foreach (var meal in _meals)
+                                {
+                                    var perSrv = meal.PerServingNutrients;
+                                    <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
+                                        <div>
+                                            <div class="ct-entry-name">@meal.Name</div>
+                                            <div class="ct-entry-meta">
+                                                @meal.Ingredients.Count ingredients • @perSrv.CaloriesKcal.ToString("0") kcal / serving
+                                            </div>
+                                        </div>
+                                        <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => LogMealAsync(meal)">
+                                            + 1 srv
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<BarcodeScannerModal IsOpen="_scannerOpen"
+                     OnBarcodeScanned="HandleBarcodeScannedAsync"
+                     OnClose="() => _scannerOpen = false" />
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public DateOnly Date { get; set; }
+    [Parameter] public Guid MealSlotId { get; set; }
+    [Parameter] public string MealSlotName { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnLogged { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private int _tab;
+    private string _searchQuery = string.Empty;
+    private List<FoodItem> _results = new();
+    private List<Meal> _meals = new();
+    private FoodItem? _selectedFood;
+    private double _grams = 100;
+    private bool _isEnriching;
+    private bool _scannerOpen;
+    private string? _statusMessage;
+    private bool _wasOpen;
+    private CancellationTokenSource? _searchCts;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _selectedFood = null;
+            _statusMessage = null;
+            _searchQuery = string.Empty;
+            _results = await FoodLookup.SearchLocalAsync(string.Empty, 25);
+            _meals = await MealRepo.GetAllAsync();
+        }
+        _wasOpen = IsOpen;
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _searchQuery = e.Value?.ToString() ?? string.Empty;
+        _statusMessage = null;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+
+        // 1. Immediate local SQLite search
+        var local = await FoodLookup.SearchLocalAsync(_searchQuery, 40, ct);
+        _results = local;
+        StateHasChanged();
+
+        if (_searchQuery.Trim().Length < 2)
+        {
+            _isEnriching = false;
+            return;
+        }
+
+        // 2. Automatically enrich from Open Food Facts in addition to local search (debounced)
+        try
+        {
+            _isEnriching = true;
+            StateHasChanged();
+            await Task.Delay(350, ct);
+            var merged = await FoodLookup.EnrichFromApiAndMergeAsync(_searchQuery, local, ct);
+            if (!ct.IsCancellationRequested)
+            {
+                _results = merged;
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // superseded by newer keystroke
+        }
+        finally
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                _isEnriching = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task HandleBarcodeScannedAsync(string barcode)
+    {
+        _statusMessage = $"Looking up barcode {barcode}...";
+        StateHasChanged();
+
+        var lookup = await FoodLookup.LookupByBarcodeAsync(barcode);
+        if (lookup.Item is not null)
+        {
+            _statusMessage = lookup.FoundLocally
+                ? $"Found in local database ({barcode})."
+                : $"Found via Open Food Facts and saved locally ({barcode}).";
+            SelectFood(lookup.Item);
+        }
+        else
+        {
+            _statusMessage = $"Barcode {barcode} not found locally or on Open Food Facts. You can add it as a Custom Food in the Foods tab.";
+        }
+    }
+
+    private void SelectFood(FoodItem item)
+    {
+        _selectedFood = item;
+        _grams = item.ServingSizeG > 0 ? item.ServingSizeG : 100;
+    }
+
+    private async Task ConfirmLogFoodAsync()
+    {
+        if (_selectedFood is null || _grams <= 0) return;
+        await Diary.LogFoodItemAsync(Date, MealSlotId, _selectedFood, _grams);
+        await OnLogged.InvokeAsync();
+        await Close();
+    }
+
+    private async Task LogMealAsync(Meal meal)
+    {
+        await Diary.LogMealAsync(Date, MealSlotId, meal, 1);
+        await OnLogged.InvokeAsync();
+        await Close();
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+}
