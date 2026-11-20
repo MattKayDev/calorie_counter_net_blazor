@@ -20,6 +20,7 @@ public static class AppIcons
     public const string Close = "close";
 
     // Actions
+    public const string Plus = "plus";
     public const string Barcode = "barcode";
     public const string Search = "search";
     public const string Copy = "copy";

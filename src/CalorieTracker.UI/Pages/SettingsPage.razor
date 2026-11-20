@@ -24,8 +24,8 @@
         </div>
         @if (_section == SettingsSection.MealSlots)
         {
-            <button class="ct-datebtn" style="padding:6px 8px; font-size:0.84rem;" @onclick="OpenAddSlotModal">
-                + Add
+            <button class="ct-cog-btn" title="Add Meal Time" aria-label="Add Meal Time" @onclick="OpenAddSlotModal">
+                <AppIcon Name="@AppIcons.Plus" Size="22" />
             </button>
         }
     </div>
