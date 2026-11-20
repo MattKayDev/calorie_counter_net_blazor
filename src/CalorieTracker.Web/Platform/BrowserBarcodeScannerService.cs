@@ -95,3 +95,31 @@ public sealed class BrowserThemeService : IThemeService
         await _js.InvokeVoidAsync("themeBridge.apply", mode, accent);
     }
 }
+
+public sealed class BrowserAppUpdateService : IAppUpdateService
+{
+    private readonly IJSRuntime _js;
+
+    public BrowserAppUpdateService(IJSRuntime js)
+    {
+        _js = js;
+    }
+
+    private sealed class JsUpdateCheckDto
+    {
+        public bool UpdateAvailable { get; set; }
+        public bool IsSupported { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public async Task<AppUpdateCheckResult> CheckForUpdateAsync()
+    {
+        var dto = await _js.InvokeAsync<JsUpdateCheckDto>("pwaUpdateBridge.checkForUpdate");
+        return new AppUpdateCheckResult(dto.UpdateAvailable, dto.IsSupported, dto.Message);
+    }
+
+    public async Task ApplyUpdateAsync()
+    {
+        await _js.InvokeVoidAsync("pwaUpdateBridge.applyUpdate");
+    }
+}

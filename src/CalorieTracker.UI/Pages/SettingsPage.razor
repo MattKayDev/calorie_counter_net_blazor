@@ -5,6 +5,7 @@
 @inject IDatabaseBackupService BackupService
 @inject IFileDownloadService FileDownload
 @inject IThemeService ThemeService
+@inject IAppUpdateService AppUpdate
 @inject NavigationManager Nav
 
 <div class="ct-topbar">
@@ -103,6 +104,19 @@
                     <div>
                         <div class="ct-menu-title">Data &amp; SQLite Backups</div>
                         <div class="ct-menu-sub">Export or restore personal.sqlite &amp; foods.sqlite</div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron">›</span>
+            </button>
+
+            <button class="ct-menu-row" @onclick="() => OpenSection(SettingsSection.Updates)">
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon">🔄</div>
+                    <div>
+                        <div class="ct-menu-title">App Updates</div>
+                        <div class="ct-menu-sub">
+                            @(_updateAvailable ? "Update ready to install!" : "Check for a newer version")
+                        </div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron">›</span>
@@ -356,6 +370,35 @@
             </div>
         </div>
     }
+    else if (_section == SettingsSection.Updates)
+    {
+        <div class="ct-card">
+            <h2 class="ct-card-title" style="margin-bottom:8px;">🔄 Check for App Updates</h2>
+            <div class="ct-muted" style="margin-bottom:14px;">
+                Check if a newer version has been published. Your local <code>personal.sqlite</code> and <code>foods.sqlite</code> data will stay completely intact when updating.
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_updateMessage))
+            {
+                <div class="ct-alert @(_updateAvailable ? "ct-alert-success" : "ct-alert-info")" style="margin-bottom:12px;">
+                    @_updateMessage
+                </div>
+            }
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="ct-btn ct-btn-soft" disabled="@_checkingUpdate" @onclick="CheckForUpdatesAsync">
+                    @(_checkingUpdate ? "Checking..." : "🔍 Check for Updates")
+                </button>
+
+                @if (_updateAvailable)
+                {
+                    <button class="ct-btn ct-btn-primary" @onclick="ApplyUpdateAsync">
+                        ⬇ Update &amp; Reload Now
+                    </button>
+                }
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -367,10 +410,14 @@
         NutritionGoals,
         ProfileUnits,
         MealSlots,
-        Backups
+        Backups,
+        Updates
     }
 
     private SettingsSection _section = SettingsSection.Menu;
+    private bool _checkingUpdate;
+    private bool _updateAvailable;
+    private string? _updateMessage;
     private UserProfile _profile = new();
     private List<MealSlot> _slots = new();
     private double? _latestWeightKg;
@@ -425,8 +472,23 @@
         SettingsSection.ProfileUnits => "Profile & Units",
         SettingsSection.MealSlots => "Meal Times & Slots",
         SettingsSection.Backups => "Data & Backups",
+        SettingsSection.Updates => "App Updates",
         _ => "Settings"
     };
+
+    private async Task CheckForUpdatesAsync()
+    {
+        _checkingUpdate = true;
+        _updateMessage = null;
+        StateHasChanged();
+
+        var result = await AppUpdate.CheckForUpdateAsync();
+        _updateAvailable = result.UpdateAvailable;
+        _updateMessage = result.Message;
+        _checkingUpdate = false;
+    }
+
+    private Task ApplyUpdateAsync() => AppUpdate.ApplyUpdateAsync();
 
     private static string GetSchemeLabel(ColorScheme scheme) =>
         _colorOptions.FirstOrDefault(o => o.Scheme == scheme).Label ?? "Royal Blue";

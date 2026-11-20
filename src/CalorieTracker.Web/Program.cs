@@ -17,6 +17,7 @@ builder.Services.AddScoped<IFoodsSqliteEngine, FoodsBrowserSqliteEngine>();
 builder.Services.AddScoped<IBarcodeScannerService, BrowserBarcodeScannerService>();
 builder.Services.AddScoped<IFileDownloadService, BrowserFileDownloadService>();
 builder.Services.AddScoped<IThemeService, BrowserThemeService>();
+builder.Services.AddScoped<IAppUpdateService, BrowserAppUpdateService>();
 
 // Local SQLite repositories & application services
 builder.Services.AddSqliteRepositories();

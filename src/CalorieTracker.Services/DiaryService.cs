@@ -20,6 +20,14 @@ public interface IThemeService
     Task ApplyThemeAsync(CalorieTracker.Domain.Enums.ThemeMode theme, CalorieTracker.Domain.Enums.ColorScheme scheme);
 }
 
+public sealed record AppUpdateCheckResult(bool UpdateAvailable, bool IsSupported, string Message);
+
+public interface IAppUpdateService
+{
+    Task<AppUpdateCheckResult> CheckForUpdateAsync();
+    Task ApplyUpdateAsync();
+}
+
 public sealed class DiaryService
 {
     private readonly IFoodLogRepository _logRepo;
