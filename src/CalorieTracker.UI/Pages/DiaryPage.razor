@@ -4,22 +4,14 @@
 @inject IFoodLogRepository LogRepo
 @inject IWaterLogRepository WaterRepo
 @inject DiaryService Diary
-@inject IThemeService ThemeService
 
 <div class="ct-topbar">
     <div class="ct-topbar-row">
         <div class="ct-brand">🍏 Calorie Diary</div>
-        <div style="display:flex; gap:6px; align-items:center;">
-            <button class="ct-datebtn" style="padding:6px 10px; font-size:0.85rem; background:rgba(255,255,255,0.18);"
-                    title="Toggle Light / Dark Mode"
-                    @onclick="ToggleThemeAsync">
-                @(_profile.ThemeMode == ThemeMode.Dark ? "☀️" : "🌙")
-            </button>
-            <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
-                    @onclick="() => _calendarOpen = true">
-                📅 History
-            </button>
-        </div>
+        <button class="ct-datebtn" style="padding:6px 10px; font-size:0.82rem; background:rgba(255,255,255,0.18);"
+                @onclick="() => _calendarOpen = true">
+            📅 History
+        </button>
     </div>
 
     <div class="ct-datebar">
@@ -266,13 +258,6 @@
         _waterLog = await WaterRepo.GetByDateAsync(_selectedDate);
         _totals = DiaryService.SumNutrients(_entries);
         _loading = false;
-    }
-
-    private async Task ToggleThemeAsync()
-    {
-        _profile.ThemeMode = _profile.ThemeMode == ThemeMode.Dark ? ThemeMode.Light : ThemeMode.Dark;
-        await ProfileRepo.SaveAsync(_profile);
-        await ThemeService.ApplyThemeAsync(_profile.ThemeMode);
     }
 
     private async Task AdjustWaterAsync(int deltaMl)
