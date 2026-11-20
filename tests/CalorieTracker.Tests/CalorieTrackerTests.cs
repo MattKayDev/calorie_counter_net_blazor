@@ -253,4 +253,40 @@ public class SqliteRepositoryAndLookupTests
         Assert.False(stalled.IsMovingTowardGoal);
         Assert.Null(stalled.EstimatedDate);
     }
+
+    [Fact]
+    public void UsdaParser_ExtractsNutrientsAndConvertsSodiumToSalt()
+    {
+        const string json = """
+            {
+              "foods": [
+                {
+                  "fdcId": 2021609,
+                  "description": "SUGAR",
+                  "brandName": "WEIS",
+                  "gtinUpc": "041493647402",
+                  "servingSize": 4.0,
+                  "householdServingFullText": "1 Tbsp",
+                  "foodNutrients": [
+                    { "nutrientId": 1008, "nutrientNumber": "208", "unitName": "KCAL", "value": 375 },
+                    { "nutrientId": 1005, "nutrientNumber": "205", "unitName": "G", "value": 100 },
+                    { "nutrientId": 2000, "nutrientNumber": "269", "unitName": "G", "value": 100 },
+                    { "nutrientId": 1093, "nutrientNumber": "307", "unitName": "MG", "value": 400 }
+                  ]
+                }
+              ]
+            }
+            """;
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var items = OpenFoodFactsClient.ParseUsdaResponse(doc.RootElement);
+
+        Assert.Single(items);
+        Assert.Equal("Sugar", items[0].Name);
+        Assert.Equal("WEIS", items[0].Brand);
+        Assert.Equal("041493647402", items[0].Barcode);
+        Assert.Equal(375, items[0].CaloriesPer100G);
+        Assert.Equal(100, items[0].CarbsPer100G);
+        Assert.Equal(100, items[0].SugarsPer100G);
+        Assert.Equal(1.0, items[0].SaltPer100G); // 400mg sodium = 0.4g * 2.5 = 1.0g salt
+    }
 }

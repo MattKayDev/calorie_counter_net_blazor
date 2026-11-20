@@ -318,7 +318,7 @@
         {
             _isEnriching = true;
             StateHasChanged();
-            await Task.Delay(350, ct);
+            await Task.Delay(500, ct);
             var merged = await FoodLookup.EnrichFromApiAndMergeAsync(_query, local, ct);
             if (!ct.IsCancellationRequested)
             {
