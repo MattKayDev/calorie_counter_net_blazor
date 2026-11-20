@@ -612,6 +612,19 @@ html, body {
     align-items: end;
 }
 
+.ct-form-grid {
+    display: grid;
+    grid-template-columns: minmax(110px, 1fr) minmax(0, 1.35fr);
+    gap: 12px 14px;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.ct-form-grid .ct-label {
+    font-size: 0.86rem;
+    color: var(--ct-text);
+}
+
 /* Segmented tabs */
 .ct-tabs {
     display: grid;

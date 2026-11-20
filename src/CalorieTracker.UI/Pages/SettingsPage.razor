@@ -271,30 +271,30 @@
     else if (_section == SettingsSection.ProfileUnits)
     {
         <div class="ct-card">
-            <div class="ct-field">
+            <div class="ct-form-grid">
                 <label class="ct-label">Display Units</label>
                 <select class="ct-select" value="@_profile.UnitSystem" @onchange="OnUnitSystemChanged">
                     <option value="@UnitSystem.Metric">Metric (kg, cm)</option>
                     <option value="@UnitSystem.UkImperial">UK Imperial (st/lb, ft/in)</option>
                     <option value="@UnitSystem.UsImperial">US Imperial (lbs, ft/in)</option>
                 </select>
-            </div>
-            <div class="ct-grid-2">
-                <div class="ct-field">
-                    <label class="ct-label">Height (cm)</label>
-                    <input class="ct-input" type="number" step="0.5" @bind="_profile.HeightCm" />
-                </div>
-                <div class="ct-field">
-                    <label class="ct-label">Biological Sex (BF% &amp; BMR)</label>
-                    <select class="ct-select" @bind="_profile.BiologicalSex">
-                        <option value="@BiologicalSex.Unspecified">Not set</option>
-                        <option value="@BiologicalSex.Male">Male</option>
-                        <option value="@BiologicalSex.Female">Female</option>
-                    </select>
-                </div>
+
+                <label class="ct-label">Height (cm)</label>
+                <input class="ct-input" type="number" step="0.5" @bind="_profile.HeightCm" />
+
+                <label class="ct-label">Biological Sex</label>
+                <select class="ct-select" @bind="_profile.BiologicalSex">
+                    <option value="@BiologicalSex.Unspecified">Not set</option>
+                    <option value="@BiologicalSex.Male">Male</option>
+                    <option value="@BiologicalSex.Female">Female</option>
+                </select>
             </div>
 
-            <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:6px;" @onclick="SaveProfileAsync">
+            <div class="ct-muted" style="margin-bottom:12px;">
+                Height and Biological Sex are used to calculate BMI, BMR, and US Navy Body Fat %.
+            </div>
+
+            <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveProfileAsync">
                 Save Profile &amp; Units
             </button>
         </div>
