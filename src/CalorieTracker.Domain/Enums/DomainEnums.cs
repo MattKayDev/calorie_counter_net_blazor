@@ -34,3 +34,15 @@ public enum ThemeMode
     Light = 0,
     Dark = 1
 }
+
+public enum ColorScheme
+{
+    RoyalBlue = 0,
+    Green = 1,
+    Purple = 2,
+    Orange = 3,
+    Red = 4,
+    Teal = 5,
+    Rose = 6,
+    Indigo = 7
+}

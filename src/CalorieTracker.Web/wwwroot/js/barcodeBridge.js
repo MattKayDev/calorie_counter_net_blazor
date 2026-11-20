@@ -59,21 +59,36 @@
         }
     };
 
+    const ACCENT_META_COLORS = {
+        'royal-blue': '#2563eb',
+        'green': '#16a34a',
+        'purple': '#7c3aed',
+        'orange': '#ea580c',
+        'red': '#dc2626',
+        'teal': '#0d9488',
+        'rose': '#db2777',
+        'indigo': '#4f46e5'
+    };
+
     window.themeBridge = {
-        apply: function (mode) {
+        apply: function (mode, accent) {
             const theme = mode === 'dark' ? 'dark' : 'light';
+            const scheme = ACCENT_META_COLORS[accent] ? accent : 'royal-blue';
             document.documentElement.setAttribute('data-theme', theme);
-            try { localStorage.setItem('ct-theme', theme); } catch { }
+            document.documentElement.setAttribute('data-accent', scheme);
+            try {
+                localStorage.setItem('ct-theme', theme);
+                localStorage.setItem('ct-accent', scheme);
+            } catch { }
             const meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : '#16a34a');
+            if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : ACCENT_META_COLORS[scheme]);
         }
     };
 
-    // Apply cached theme immediately on script load to avoid flash
+    // Apply cached theme & accent immediately on script load to avoid flash
     try {
-        const saved = localStorage.getItem('ct-theme');
-        if (saved === 'dark') {
-            window.themeBridge.apply('dark');
-        }
+        const savedTheme = localStorage.getItem('ct-theme') || 'light';
+        const savedAccent = localStorage.getItem('ct-accent') || 'royal-blue';
+        window.themeBridge.apply(savedTheme, savedAccent);
     } catch { }
 })();

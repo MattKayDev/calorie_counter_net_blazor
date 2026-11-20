@@ -18,12 +18,12 @@
         <div class="ct-alert ct-alert-success">@_status</div>
     }
 
-    <!-- Appearance (Light / Dark Mode) -->
+    <!-- Appearance (Light / Dark Mode + Color Scheme) -->
     <div class="ct-card">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
             <div>
                 <h2 class="ct-card-title">Appearance</h2>
-                <div class="ct-muted">Switch between Light and Dark mode</div>
+                <div class="ct-muted">Theme &amp; accent color scheme</div>
             </div>
             <div class="ct-tabs" style="width:170px;">
                 <button class="ct-tab @(_profile.ThemeMode == ThemeMode.Light ? "active" : "")"
@@ -35,6 +35,17 @@
                     🌙 Dark
                 </button>
             </div>
+        </div>
+
+        <div class="ct-swatch-grid">
+            @foreach (var opt in _colorOptions)
+            {
+                <button class="ct-swatch @(_profile.ColorScheme == opt.Scheme ? "active" : "")"
+                        @onclick="() => SetColorSchemeAsync(opt.Scheme)">
+                    <span class="ct-swatch-dot" style="background:@opt.Hex;"></span>
+                    <span>@opt.Label</span>
+                </button>
+            }
         </div>
     </div>
 
@@ -284,11 +295,30 @@
         }
     }
 
+    private static readonly (ColorScheme Scheme, string Label, string Hex)[] _colorOptions =
+    {
+        (ColorScheme.RoyalBlue, "Royal Blue", "#2563eb"),
+        (ColorScheme.Green, "Green", "#16a34a"),
+        (ColorScheme.Purple, "Purple", "#7c3aed"),
+        (ColorScheme.Orange, "Orange", "#ea580c"),
+        (ColorScheme.Red, "Red", "#dc2626"),
+        (ColorScheme.Teal, "Teal", "#0d9488"),
+        (ColorScheme.Rose, "Rose", "#db2777"),
+        (ColorScheme.Indigo, "Indigo", "#4f46e5")
+    };
+
     private async Task SetThemeAsync(ThemeMode mode)
     {
         _profile.ThemeMode = mode;
         await ProfileRepo.SaveAsync(_profile);
-        await ThemeService.ApplyThemeAsync(mode);
+        await ThemeService.ApplyThemeAsync(_profile.ThemeMode, _profile.ColorScheme);
+    }
+
+    private async Task SetColorSchemeAsync(ColorScheme scheme)
+    {
+        _profile.ColorScheme = scheme;
+        await ProfileRepo.SaveAsync(_profile);
+        await ThemeService.ApplyThemeAsync(_profile.ThemeMode, _profile.ColorScheme);
     }
 
     private async Task ApplyRecommendedCaloriesAsync(double recommended)

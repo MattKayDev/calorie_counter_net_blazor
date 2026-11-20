@@ -29,7 +29,7 @@
     private bool IsOver => Consumed > Goal;
     private double Ratio => Goal > 0 ? Math.Clamp(Consumed / Goal, 0, 1) : 0;
     private double DashOffset => Circumference * (1 - Ratio);
-    private string RingColor => IsOver ? "#ef4444" : "#16a34a";
+    private string RingColor => IsOver ? "#ef4444" : "var(--ct-green)";
 
     private string CircumferenceStr => Circumference.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
     private string DashOffsetStr => DashOffset.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);

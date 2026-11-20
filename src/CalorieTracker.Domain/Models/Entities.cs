@@ -21,6 +21,7 @@ public sealed class UserProfile
     public double WeeklyWeightChangeKg { get; set; } = -0.5;
     public int DailyWaterGoalMl { get; set; } = 2000;
     public ThemeMode ThemeMode { get; set; } = ThemeMode.Light;
+    public ColorScheme ColorScheme { get; set; } = ColorScheme.RoyalBlue;
     public UnitSystem UnitSystem { get; set; } = UnitSystem.Metric;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

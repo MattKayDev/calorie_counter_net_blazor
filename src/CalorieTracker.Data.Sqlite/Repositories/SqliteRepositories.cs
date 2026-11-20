@@ -42,6 +42,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 WeeklyWeightChangeKg = RowReader.GetDouble(r, "WeeklyWeightChangeKg", -0.5),
                 DailyWaterGoalMl = RowReader.GetInt(r, "DailyWaterGoalMl", 2000),
                 ThemeMode = (ThemeMode)RowReader.GetInt(r, "ThemeMode"),
+                ColorScheme = (ColorScheme)RowReader.GetInt(r, "ColorScheme"),
                 UnitSystem = (UnitSystem)RowReader.GetInt(r, "UnitSystem"),
                 UpdatedAtUtc = RowReader.GetDateTime(r, "UpdatedAtUtc")
             };
@@ -60,8 +61,8 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
             INSERT INTO UserProfiles (
                 Id, DailyCalorieGoal, ProteinGoalG, CarbsGoalG, FatGoalG, SaturatedFatGoalG,
                 SugarGoalG, SaltGoalG, FibreGoalG, HeightCm, AgeYears, BiologicalSex, ActivityLevel,
-                GoalWeightKg, WeeklyWeightChangeKg, DailyWaterGoalMl, ThemeMode, UnitSystem, UpdatedAtUtc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                GoalWeightKg, WeeklyWeightChangeKg, DailyWaterGoalMl, ThemeMode, ColorScheme, UnitSystem, UpdatedAtUtc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(Id) DO UPDATE SET
                 DailyCalorieGoal = excluded.DailyCalorieGoal,
                 ProteinGoalG = excluded.ProteinGoalG,
@@ -79,6 +80,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 WeeklyWeightChangeKg = excluded.WeeklyWeightChangeKg,
                 DailyWaterGoalMl = excluded.DailyWaterGoalMl,
                 ThemeMode = excluded.ThemeMode,
+                ColorScheme = excluded.ColorScheme,
                 UnitSystem = excluded.UnitSystem,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
             """,
@@ -88,7 +90,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 profile.FatGoalG, profile.SaturatedFatGoalG, profile.SugarGoalG, profile.SaltGoalG,
                 profile.FibreGoalG, profile.HeightCm, profile.AgeYears, (int)profile.BiologicalSex,
                 (int)profile.ActivityLevel, profile.GoalWeightKg, profile.WeeklyWeightChangeKg,
-                profile.DailyWaterGoalMl, (int)profile.ThemeMode, (int)profile.UnitSystem,
+                profile.DailyWaterGoalMl, (int)profile.ThemeMode, (int)profile.ColorScheme, (int)profile.UnitSystem,
                 profile.UpdatedAtUtc.ToString("O")
             },
             ct);

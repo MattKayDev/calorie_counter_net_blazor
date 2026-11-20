@@ -17,7 +17,7 @@ public interface IFileDownloadService
 
 public interface IThemeService
 {
-    Task ApplyThemeAsync(CalorieTracker.Domain.Enums.ThemeMode theme);
+    Task ApplyThemeAsync(CalorieTracker.Domain.Enums.ThemeMode theme, CalorieTracker.Domain.Enums.ColorScheme scheme);
 }
 
 public sealed class DiaryService

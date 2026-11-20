@@ -75,9 +75,23 @@ public sealed class BrowserThemeService : IThemeService
         _js = js;
     }
 
-    public async Task ApplyThemeAsync(CalorieTracker.Domain.Enums.ThemeMode theme)
+    public async Task ApplyThemeAsync(
+        CalorieTracker.Domain.Enums.ThemeMode theme,
+        CalorieTracker.Domain.Enums.ColorScheme scheme)
     {
         var mode = theme == CalorieTracker.Domain.Enums.ThemeMode.Dark ? "dark" : "light";
-        await _js.InvokeVoidAsync("themeBridge.apply", mode);
+        var accent = scheme switch
+        {
+            CalorieTracker.Domain.Enums.ColorScheme.RoyalBlue => "royal-blue",
+            CalorieTracker.Domain.Enums.ColorScheme.Green => "green",
+            CalorieTracker.Domain.Enums.ColorScheme.Purple => "purple",
+            CalorieTracker.Domain.Enums.ColorScheme.Orange => "orange",
+            CalorieTracker.Domain.Enums.ColorScheme.Red => "red",
+            CalorieTracker.Domain.Enums.ColorScheme.Teal => "teal",
+            CalorieTracker.Domain.Enums.ColorScheme.Rose => "rose",
+            CalorieTracker.Domain.Enums.ColorScheme.Indigo => "indigo",
+            _ => "royal-blue"
+        };
+        await _js.InvokeVoidAsync("themeBridge.apply", mode, accent);
     }
 }

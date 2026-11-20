@@ -35,6 +35,7 @@ public sealed class PersonalSqliteSchemaInitializer
                 WeeklyWeightChangeKg REAL NOT NULL DEFAULT -0.5,
                 DailyWaterGoalMl INTEGER NOT NULL DEFAULT 2000,
                 ThemeMode INTEGER NOT NULL DEFAULT 0,
+                ColorScheme INTEGER NOT NULL DEFAULT 0,
                 UnitSystem INTEGER NOT NULL DEFAULT 0,
                 UpdatedAtUtc TEXT NOT NULL
             );
@@ -145,6 +146,7 @@ public sealed class PersonalSqliteSchemaInitializer
         await EnsureColumnAsync("UserProfiles", "WeeklyWeightChangeKg", "REAL NOT NULL DEFAULT -0.5", ct);
         await EnsureColumnAsync("UserProfiles", "DailyWaterGoalMl", "INTEGER NOT NULL DEFAULT 2000", ct);
         await EnsureColumnAsync("UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync("UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
 
         // Seed default meal slots if none exist
         var existingSlots = await _engine.QueryAsync("SELECT COUNT(*) AS Cnt FROM MealSlots;", null, ct);

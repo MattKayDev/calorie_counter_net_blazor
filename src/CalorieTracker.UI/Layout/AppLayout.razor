@@ -31,7 +31,7 @@
         try
         {
             var profile = await ProfileRepo.GetOrCreateAsync();
-            await ThemeService.ApplyThemeAsync(profile.ThemeMode);
+            await ThemeService.ApplyThemeAsync(profile.ThemeMode, profile.ColorScheme);
         }
         catch
         {
