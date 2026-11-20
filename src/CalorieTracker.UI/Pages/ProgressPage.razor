@@ -232,26 +232,25 @@
                     </div>
                 }
 
-                <div class="ct-grid-2">
-                    <div class="ct-field">
-                        <label class="ct-label">Date</label>
-                        <input class="ct-input" type="date" @bind="_entryDate" />
-                    </div>
-                    <div class="ct-field">
-                        <label class="ct-label">Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
-                        <input class="ct-input" type="number" step="0.1" @bind="_weightInput" />
-                    </div>
+                <div class="ct-field">
+                    <label class="ct-label">Date</label>
+                    <input class="ct-input" type="date" @bind="_entryDate" />
                 </div>
 
                 <div class="ct-grid-2">
                     <div class="ct-field">
+                        <label class="ct-label">Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
+                        <input class="ct-input" type="number" step="0.1" @bind="_weightInput" />
+                    </div>
+                    <div class="ct-field">
                         <label class="ct-label">Height (@UnitConverter.LengthUnitLabel(_profile.UnitSystem))</label>
                         <input class="ct-input" type="number" step="0.1" @bind="_heightInput" />
                     </div>
-                    <div class="ct-field">
-                        <label class="ct-label">Manual Body Fat % (smart scale)</label>
-                        <input class="ct-input" type="number" step="0.1" placeholder="Optional" @bind="_manualBfInput" />
-                    </div>
+                </div>
+
+                <div class="ct-field">
+                    <label class="ct-label">Manual Body Fat % (smart scale, optional)</label>
+                    <input class="ct-input" type="number" step="0.1" placeholder="Optional" @bind="_manualBfInput" />
                 </div>
 
                 <div style="font-weight:700; font-size:0.84rem; margin:8px 0 6px;">

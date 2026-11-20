@@ -568,6 +568,7 @@ html, body {
     flex-direction: column;
     gap: 4px;
     margin-bottom: 10px;
+    min-width: 0;
 }
 
 .ct-label {
@@ -578,6 +579,9 @@ html, body {
 
 .ct-input, .ct-select {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 42px;
     padding: 10px 12px;
     border-radius: 10px;
     border: 1px solid var(--ct-border);
@@ -585,23 +589,27 @@ html, body {
     color: var(--ct-text);
     font-size: 0.92rem;
     outline: none;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .ct-input:focus, .ct-select:focus {
     border-color: var(--ct-green);
-    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+    box-shadow: 0 0 0 3px var(--ct-focus-ring);
 }
 
 .ct-grid-2 {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    align-items: end;
 }
 
 .ct-grid-3 {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
+    align-items: end;
 }
 
 /* Segmented tabs */
