@@ -58,6 +58,18 @@ public class BodyMetricsAndUnitsTests
         Assert.Equal("1.50 MB", UnitConverter.FormatStorageSize((long)(1.5 * 1024 * 1024)));
         Assert.Equal("2.50 GB", UnitConverter.FormatStorageSize((long)(2.5 * 1024 * 1024 * 1024)));
     }
+
+    [Fact]
+    public void AppInfo_ExposesValidFourPartVersion()
+    {
+        var version = AppInfo.Version;
+        var parts = version.Split('.');
+        Assert.Equal(4, parts.Length);
+        Assert.All(parts, p => Assert.True(int.TryParse(p, out var n) && n >= 0));
+        Assert.NotEqual("0.0.0.0", version);
+        Assert.True(Version.TryParse(version, out _));
+        Assert.Equal($"v{version}", AppInfo.DisplayVersion);
+    }
 }
 
 public class SqliteRepositoryAndLookupTests

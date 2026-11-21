@@ -547,9 +547,14 @@
     else if (_section == SettingsSection.Updates)
     {
         <div class="ct-card">
-            <h2 class="ct-card-title" style="margin-bottom:8px;"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Refresh" Size="18" /></span> Check for App Updates</h2>
+            <div class="ct-card-header" style="align-items:flex-start; margin-bottom:8px;">
+                <h2 class="ct-card-title"><span style="color:var(--ct-green);"><AppIcon Name="@AppIcons.Refresh" Size="18" /></span> Check for App Updates</h2>
+                <span class="ct-badge ct-badge-green" style="flex-shrink:0; white-space:nowrap;">
+                    @AppInfo.DisplayVersion
+                </span>
+            </div>
             <div class="ct-muted" style="margin-bottom:14px;">
-                Check if a newer version has been published. Your data will stay completely intact when updating.
+                Currently running <strong>@AppInfo.DisplayVersion</strong>. Check if a newer version has been published. Your data will stay completely intact when updating.
             </div>
 
             @if (!string.IsNullOrWhiteSpace(_updateMessage))
