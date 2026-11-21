@@ -19,23 +19,22 @@ A free, local-first, mobile-friendly calorie, nutrient, and body-metrics tracker
 <img src="docs/screenshots/appearance-dark.png" alt="Dark Mode & Themes" width="360" />
 
 ## Features
-- **Daily Calorie & Nutrient Diary:** Track calories, protein, carbs, fat, saturated fat, sugars, fibre, and salt with a daily calorie ring, macro progress bars, quick-log floating `+` button, in-place entry editing, and 1-tap **Copy Yesterday**.
+- **Daily Calorie & Nutrient Diary:** Track calories, protein, carbs, fat, saturated fat, sugars, fibre, and salt with **Standard**, **Compact** (collapsible nutrients), or **Minimal** summary styles, a **Fixed / Scrollable** summary toggle, serving counts displayed on every logged item, **Edit & Duplicate** across meal times and dates (with servings multiplier), and 1-tap **Copy Yesterday**.
 - **Full History Calendar:** Jump to any past day or month to review daily calorie totals and logged foods.
-- **Custom Meal Times:** Start with Breakfast, Lunch, Dinner, and Snacks — add, reorder, or archive custom meal slots anytime.
-- **Daily Water Tracker:** Log water intake in ml with quick `-250`, `+250ml`, and `+500` buttons against your daily hydration target.
-- **Local-First Food Search & Barcode Scanner:**
+- **Custom Meal Times & Optional Water Tracker:** Start with Breakfast, Lunch, Dinner, and Snacks — add, edit (with a flat icon picker), reorder, or archive meal slots, plus an optional, reorderable daily **Water Tracker** (`-250`, `+250ml`, `+500` quick buttons).
+- **Local-First Food Search, Barcode Scanner & Food Library:**
   - Live camera barcode scanning (with manual barcode entry fallback).
-  - Searches your local SQLite food library immediately while enriching results from **Open Food Facts** and **USDA FoodData Central**, automatically caching all returned foods locally so your database grows over time.
-  - Create custom foods (per 100g) and multi-ingredient reusable Saved Meals.
+  - Searches your local SQLite food library immediately (with a live loading spinner) while enriching results from **Open Food Facts** and **USDA FoodData Central**, caching returned foods locally.
+  - Remembers your recent custom portions per food, supports **`g` / `ml`** measurement units, includes a **Servings** multiplier (`1x`, `2x`, or custom) when logging or editing, lets you create and edit custom foods without duplication, and organizes foods under **All Foods**, **Custom**, and **Meals** tabs.
 - **Body Metrics, BMI, Body Fat % & Goal Weight Forecast:**
   - Track weight, height, and tape measurements (neck, waist, hip) with automatic **BMI** and **US Navy Body Fat %** calculations (plus optional manual smart-scale Body Fat % entry).
-  - Estimates **BMR**, **TDEE**, recommended daily calories, and projected goal weight dates based on both your planned target and actual tracked average, alongside weight trend and 14-day calorie charts.
-- **Appearance & Units:** Light & Dark mode, **8 accent colour schemes** (Royal Blue default, Green, Purple, Orange, Red, Teal, Rose, Indigo), and Metric / UK Imperial / US Imperial unit switching (stored canonically in metric).
+  - Smooth **Weight Goal** onboarding with live recommended daily calories and goal date projections as you type, plus weight trend and 14-day calorie charts.
+- **Appearance, Navigation & Units:** Light & Dark mode, **8 accent colour schemes** (Royal Blue default, Green, Purple, Orange, Red, Teal, Rose, Indigo), Metric / UK Imperial / US Imperial unit switching, and a toggle to show or hide **Foods** in the bottom navigation bar (always accessible from Settings).
 - **Privacy-First Split SQLite Storage:**
   - `personal.sqlite` keeps all diary logs, body measurements, water logs, saved meals, and goals strictly private on-device.
   - `foods.sqlite` stores only the shareable food catalog with zero personal data.
-  - Both databases support 1-click export and restore in **Settings → Backups**.
-- **PWA Updates:** Automatic **"Update ready"** in-app notifications plus **Settings → Updates** to check for and apply newer versions in one tap.
+  - Live database storage sizes plus 1-click export and restore for both databases in **Settings → Backups**.
+- **PWA Updates & Versioning:** Automatic **"Update ready"** in-app notifications plus **Settings → App Updates** showing the current 4-part version and 1-tap update & reload.
 
 ## Architecture
 - `src/CalorieTracker.Domain` — Pure C# models, repository interfaces, unit conversions, BMI / Body Fat % / Goal Weight math.
