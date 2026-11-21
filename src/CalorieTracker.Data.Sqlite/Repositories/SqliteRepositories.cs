@@ -44,6 +44,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 ThemeMode = (ThemeMode)RowReader.GetInt(r, "ThemeMode"),
                 ColorScheme = (ColorScheme)RowReader.GetInt(r, "ColorScheme"),
                 UnitSystem = (UnitSystem)RowReader.GetInt(r, "UnitSystem"),
+                PinCalorieSummary = RowReader.GetInt(r, "PinCalorieSummary", 1) != 0,
                 UpdatedAtUtc = RowReader.GetDateTime(r, "UpdatedAtUtc")
             };
         }
@@ -61,8 +62,8 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
             INSERT INTO UserProfiles (
                 Id, DailyCalorieGoal, ProteinGoalG, CarbsGoalG, FatGoalG, SaturatedFatGoalG,
                 SugarGoalG, SaltGoalG, FibreGoalG, HeightCm, AgeYears, BiologicalSex, ActivityLevel,
-                GoalWeightKg, WeeklyWeightChangeKg, DailyWaterGoalMl, ThemeMode, ColorScheme, UnitSystem, UpdatedAtUtc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                GoalWeightKg, WeeklyWeightChangeKg, DailyWaterGoalMl, ThemeMode, ColorScheme, UnitSystem, PinCalorieSummary, UpdatedAtUtc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(Id) DO UPDATE SET
                 DailyCalorieGoal = excluded.DailyCalorieGoal,
                 ProteinGoalG = excluded.ProteinGoalG,
@@ -82,6 +83,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 ThemeMode = excluded.ThemeMode,
                 ColorScheme = excluded.ColorScheme,
                 UnitSystem = excluded.UnitSystem,
+                PinCalorieSummary = excluded.PinCalorieSummary,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
             """,
             new object?[]
@@ -91,7 +93,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 profile.FibreGoalG, profile.HeightCm, profile.AgeYears, (int)profile.BiologicalSex,
                 (int)profile.ActivityLevel, profile.GoalWeightKg, profile.WeeklyWeightChangeKg,
                 profile.DailyWaterGoalMl, (int)profile.ThemeMode, (int)profile.ColorScheme, (int)profile.UnitSystem,
-                profile.UpdatedAtUtc.ToString("O")
+                profile.PinCalorieSummary ? 1 : 0, profile.UpdatedAtUtc.ToString("O")
             },
             ct);
     }

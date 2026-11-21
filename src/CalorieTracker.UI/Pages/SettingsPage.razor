@@ -48,7 +48,7 @@
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Palette" Size="20" /></div>
                     <div>
                         <div class="ct-menu-title">Appearance</div>
-                        <div class="ct-menu-sub">Light or dark theme and accent colours</div>
+                        <div class="ct-menu-sub">Theme, accent colours, and diary layout</div>
                     </div>
                 </div>
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
@@ -155,6 +155,25 @@
                         <span>@opt.Label</span>
                     </button>
                 }
+            </div>
+        </div>
+
+        <div class="ct-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:160px;">
+                    <h2 class="ct-card-title">Calorie Summary</h2>
+                    <div class="ct-muted">Keep fixed at the top or scroll with your meal times</div>
+                </div>
+                <div class="ct-tabs" style="width:190px; flex-shrink:0;">
+                    <button type="button" class="ct-tab @(_profile.PinCalorieSummary ? "active" : "")"
+                            @onclick="() => SetPinCalorieSummaryAsync(true)">
+                        Fixed
+                    </button>
+                    <button type="button" class="ct-tab @(!_profile.PinCalorieSummary ? "active" : "")"
+                            @onclick="() => SetPinCalorieSummaryAsync(false)">
+                        Scrollable
+                    </button>
+                </div>
             </div>
         </div>
     }
@@ -845,6 +864,12 @@
         _profile.ColorScheme = scheme;
         await ProfileRepo.SaveAsync(_profile);
         await ThemeService.ApplyThemeAsync(_profile.ThemeMode, _profile.ColorScheme);
+    }
+
+    private async Task SetPinCalorieSummaryAsync(bool pin)
+    {
+        _profile.PinCalorieSummary = pin;
+        await ProfileRepo.SaveAsync(_profile);
     }
 
     private async Task SaveInitialCurrentWeightAsync(double weightKg)

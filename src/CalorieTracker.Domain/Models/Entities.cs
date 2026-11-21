@@ -23,6 +23,7 @@ public sealed class UserProfile
     public ThemeMode ThemeMode { get; set; } = ThemeMode.Light;
     public ColorScheme ColorScheme { get; set; } = ColorScheme.RoyalBlue;
     public UnitSystem UnitSystem { get; set; } = UnitSystem.Metric;
+    public bool PinCalorieSummary { get; set; } = true;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

@@ -37,59 +37,20 @@
 }
 else
 {
-    <!-- Fixed Daily Calorie Ring & Macro Summary -->
-    <div class="ct-diary-fixed">
-        @if (!string.IsNullOrWhiteSpace(_toast))
-        {
-            <div class="ct-alert ct-alert-success">@_toast</div>
-        }
-
-        <div class="ct-card">
-            <div class="ct-summary-grid">
-                <div class="ct-stat-col">
-                    <div class="ct-stat-val">@_profile.DailyCalorieGoal.ToString("0")</div>
-                    <div class="ct-stat-lbl">Goal</div>
-                </div>
-
-                <CalorieRing Consumed="_totals.CaloriesKcal" Goal="_profile.DailyCalorieGoal" />
-
-                <div class="ct-stat-col">
-                    <div class="ct-stat-val" style="color:var(--ct-green-dark)">@_totals.CaloriesKcal.ToString("0")</div>
-                    <div class="ct-stat-lbl">Eaten</div>
-                </div>
-            </div>
-
-            <div class="ct-macro-row">
-                @RenderMacroPill("Carbs", _totals.CarbsG, _profile.CarbsGoalG, "#2563eb")
-                @RenderMacroPill("Protein", _totals.ProteinG, _profile.ProteinGoalG, "#16a34a")
-                @RenderMacroPill("Fat", _totals.FatG, _profile.FatGoalG, "#f59e0b")
-                @RenderMacroPill("Sugars", _totals.SugarsG, _profile.SugarGoalG, "#ec4899")
-            </div>
-
-            <div style="display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
-                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
-                    @(_showAllNutrients ? "Hide nutrients" : "All nutrients")
-                    <AppIcon Name="@(_showAllNutrients ? AppIcons.ChevronUp : AppIcons.ChevronDown)" Size="14" />
-                </button>
-                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="CopyYesterdayAsync">
-                    <AppIcon Name="@AppIcons.Copy" Size="14" /> Copy Yesterday
-                </button>
-            </div>
-
-            @if (_showAllNutrients)
-            {
-                <div class="ct-nutrient-list">
-                    @RenderNutrientRow("Saturated Fat", _totals.SaturatedFatG, _profile.SaturatedFatGoalG, "g", "#f97316")
-                    @RenderNutrientRow("Sugars", _totals.SugarsG, _profile.SugarGoalG, "g", "#ec4899")
-                    @RenderNutrientRow("Fibre", _totals.FibreG, _profile.FibreGoalG, "g", "#10b981")
-                    @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
-                </div>
-            }
+    @if (_profile.PinCalorieSummary)
+    {
+        <!-- Fixed Daily Calorie Ring & Macro Summary -->
+        <div class="ct-diary-fixed">
+            @RenderCalorieSummary()
         </div>
-    </div>
+    }
 
-    <!-- Scrollable Water & Meal Times Area -->
-    <div class="ct-diary-scroll">
+    <!-- Scrollable Diary Content -->
+    <div class="ct-diary-scroll" style="@(_profile.PinCalorieSummary ? null : "padding-top:12px;")">
+        @if (!_profile.PinCalorieSummary)
+        {
+            @RenderCalorieSummary()
+        }
         @foreach (var slot in _slots)
         {
             if (slot.IsWaterTracker)
@@ -449,6 +410,57 @@ else
         if (d == today.AddDays(1)) return $"Tomorrow, {d:dd MMM}";
         return d.ToString("ddd, dd MMM yyyy");
     }
+
+    private RenderFragment RenderCalorieSummary() => __builder =>
+    {
+        @if (!string.IsNullOrWhiteSpace(_toast))
+        {
+            <div class="ct-alert ct-alert-success">@_toast</div>
+        }
+
+        <div class="ct-card">
+            <div class="ct-summary-grid">
+                <div class="ct-stat-col">
+                    <div class="ct-stat-val">@_profile.DailyCalorieGoal.ToString("0")</div>
+                    <div class="ct-stat-lbl">Goal</div>
+                </div>
+
+                <CalorieRing Consumed="_totals.CaloriesKcal" Goal="_profile.DailyCalorieGoal" />
+
+                <div class="ct-stat-col">
+                    <div class="ct-stat-val" style="color:var(--ct-green-dark)">@_totals.CaloriesKcal.ToString("0")</div>
+                    <div class="ct-stat-lbl">Eaten</div>
+                </div>
+            </div>
+
+            <div class="ct-macro-row">
+                @RenderMacroPill("Carbs", _totals.CarbsG, _profile.CarbsGoalG, "#2563eb")
+                @RenderMacroPill("Protein", _totals.ProteinG, _profile.ProteinGoalG, "#16a34a")
+                @RenderMacroPill("Fat", _totals.FatG, _profile.FatGoalG, "#f59e0b")
+                @RenderMacroPill("Sugars", _totals.SugarsG, _profile.SugarGoalG, "#ec4899")
+            </div>
+
+            <div style="display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
+                    @(_showAllNutrients ? "Hide nutrients" : "All nutrients")
+                    <AppIcon Name="@(_showAllNutrients ? AppIcons.ChevronUp : AppIcons.ChevronDown)" Size="14" />
+                </button>
+                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="CopyYesterdayAsync">
+                    <AppIcon Name="@AppIcons.Copy" Size="14" /> Copy Yesterday
+                </button>
+            </div>
+
+            @if (_showAllNutrients)
+            {
+                <div class="ct-nutrient-list">
+                    @RenderNutrientRow("Saturated Fat", _totals.SaturatedFatG, _profile.SaturatedFatGoalG, "g", "#f97316")
+                    @RenderNutrientRow("Sugars", _totals.SugarsG, _profile.SugarGoalG, "g", "#ec4899")
+                    @RenderNutrientRow("Fibre", _totals.FibreG, _profile.FibreGoalG, "g", "#10b981")
+                    @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
+                </div>
+            }
+        </div>
+    };
 
     private RenderFragment RenderMacroPill(string name, double value, double goal, string color) => __builder =>
     {

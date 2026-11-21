@@ -39,6 +39,7 @@ public sealed class PersonalSqliteSchemaInitializer
                 ThemeMode INTEGER NOT NULL DEFAULT 0,
                 ColorScheme INTEGER NOT NULL DEFAULT 0,
                 UnitSystem INTEGER NOT NULL DEFAULT 0,
+                PinCalorieSummary INTEGER NOT NULL DEFAULT 1,
                 UpdatedAtUtc TEXT NOT NULL
             );
             """, null, ct);
@@ -151,6 +152,7 @@ public sealed class PersonalSqliteSchemaInitializer
         await EnsureColumnAsync("UserProfiles", "DailyWaterGoalMl", "INTEGER NOT NULL DEFAULT 2000", ct);
         await EnsureColumnAsync("UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
         await EnsureColumnAsync("UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync("UserProfiles", "PinCalorieSummary", "INTEGER NOT NULL DEFAULT 1", ct);
         await EnsureColumnAsync("FoodLogEntries", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
         // Seed default meal slots if none exist

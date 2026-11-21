@@ -264,6 +264,14 @@ public class SqliteRepositoryAndLookupTests
         Assert.Contains("FoodLogEntries", personalTableNames);
         Assert.Contains("UserProfiles", personalTableNames);
         Assert.DoesNotContain("FoodItems", personalTableNames);
+
+        // Verify PinCalorieSummary defaults to true and persists false cleanly
+        var profile = await profileRepo.GetOrCreateAsync();
+        Assert.True(profile.PinCalorieSummary);
+        profile.PinCalorieSummary = false;
+        await profileRepo.SaveAsync(profile);
+        var reloadedProfile = await profileRepo.GetOrCreateAsync();
+        Assert.False(reloadedProfile.PinCalorieSummary);
     }
 
     [Fact]
