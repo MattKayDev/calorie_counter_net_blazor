@@ -46,3 +46,10 @@ public enum ColorScheme
     Rose = 6,
     Indigo = 7
 }
+
+public enum CalorieSummaryStyle
+{
+    Standard = 0,
+    Compact = 1,
+    Minimal = 2
+}

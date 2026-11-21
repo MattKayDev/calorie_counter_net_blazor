@@ -1,5 +1,5 @@
-<div class="ct-ring-wrap">
-    <svg width="132" height="132" viewBox="0 0 132 132">
+<div class="ct-ring-wrap @(Compact ? "ct-ring-compact" : "")">
+    <svg width="@(Compact ? 92 : 132)" height="@(Compact ? 92 : 132)" viewBox="0 0 132 132">
         <circle cx="66" cy="66" r="54" fill="none" stroke="var(--ct-track)" stroke-width="12" />
         <circle cx="66" cy="66" r="54" fill="none"
                 stroke="@RingColor"
@@ -21,6 +21,7 @@
 @code {
     [Parameter] public double Consumed { get; set; }
     [Parameter] public double Goal { get; set; } = 2000;
+    [Parameter] public bool Compact { get; set; }
 
     private const double Radius = 54;
     private const double Circumference = 2 * Math.PI * Radius;

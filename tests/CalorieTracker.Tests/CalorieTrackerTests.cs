@@ -265,21 +265,25 @@ public class SqliteRepositoryAndLookupTests
         Assert.Contains("UserProfiles", personalTableNames);
         Assert.DoesNotContain("FoodItems", personalTableNames);
 
-        // Verify PinCalorieSummary, CompactCalorieSummary, and ShowFoodsInBottomNav defaults and persistence
+        // Verify PinCalorieSummary, SummaryStyle (Standard/Compact/Minimal), and ShowFoodsInBottomNav defaults and persistence
         var profile = await profileRepo.GetOrCreateAsync();
         Assert.True(profile.PinCalorieSummary);
-        Assert.False(profile.CompactCalorieSummary);
+        Assert.Equal(CalorieSummaryStyle.Standard, profile.SummaryStyle);
         Assert.True(profile.ShowFoodsInBottomNav);
 
         profile.PinCalorieSummary = false;
-        profile.CompactCalorieSummary = true;
+        profile.SummaryStyle = CalorieSummaryStyle.Compact;
         profile.ShowFoodsInBottomNav = false;
         await profileRepo.SaveAsync(profile);
 
-        var reloadedProfile = await profileRepo.GetOrCreateAsync();
-        Assert.False(reloadedProfile.PinCalorieSummary);
-        Assert.True(reloadedProfile.CompactCalorieSummary);
-        Assert.False(reloadedProfile.ShowFoodsInBottomNav);
+        var reloadedCompact = await profileRepo.GetOrCreateAsync();
+        Assert.False(reloadedCompact.PinCalorieSummary);
+        Assert.Equal(CalorieSummaryStyle.Compact, reloadedCompact.SummaryStyle);
+        Assert.False(reloadedCompact.ShowFoodsInBottomNav);
+
+        profile.SummaryStyle = CalorieSummaryStyle.Minimal;
+        await profileRepo.SaveAsync(profile);
+        Assert.Equal(CalorieSummaryStyle.Minimal, (await profileRepo.GetOrCreateAsync()).SummaryStyle);
     }
 
     [Fact]
@@ -639,8 +643,31 @@ public class SqliteRepositoryAndLookupTests
         var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
         var profile = await profileRepo.GetOrCreateAsync();
         Assert.True(profile.PinCalorieSummary);
-        Assert.False(profile.CompactCalorieSummary);
+        Assert.Equal(CalorieSummaryStyle.Standard, profile.SummaryStyle);
         Assert.True(profile.ShowFoodsInBottomNav);
+
+        // Also verify upgrading an existing DB that had CompactCalorieSummary = 1 migrates cleanly to Minimal
+        using var upgradePersonalEngine = new InMemoryPersonalSqliteEngine();
+        using var upgradeFoodsEngine = new InMemoryFoodsSqliteEngine();
+        await upgradePersonalEngine.ExecuteAsync("""
+            CREATE TABLE UserProfiles (
+                Id TEXT PRIMARY KEY,
+                DailyCalorieGoal REAL NOT NULL DEFAULT 2000,
+                ProteinGoalG REAL NOT NULL DEFAULT 120,
+                CarbsGoalG REAL NOT NULL DEFAULT 225,
+                FatGoalG REAL NOT NULL DEFAULT 65,
+                SaturatedFatGoalG REAL NOT NULL DEFAULT 20,
+                SugarGoalG REAL NOT NULL DEFAULT 45,
+                SaltGoalG REAL NOT NULL DEFAULT 6,
+                FibreGoalG REAL NOT NULL DEFAULT 30,
+                CompactCalorieSummary INTEGER NOT NULL DEFAULT 0,
+                UpdatedAtUtc TEXT NOT NULL
+            );
+            INSERT INTO UserProfiles (Id, CompactCalorieSummary, UpdatedAtUtc) VALUES ('11111111-1111-1111-1111-111111111199', 1, '2026-11-21T07:00:00Z');
+            """);
+        var upgradedInit = new PersonalSqliteSchemaInitializer(upgradePersonalEngine);
+        var upgradedProfile = await new SqliteUserProfileRepository(upgradePersonalEngine, upgradedInit).GetOrCreateAsync();
+        Assert.Equal(CalorieSummaryStyle.Minimal, upgradedProfile.SummaryStyle);
 
         var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
         var item = await foodRepo.UpsertAsync(new FoodItem { Name = "Milk", MeasurementUnit = "ml" });

@@ -46,6 +46,7 @@ public sealed class PersonalSqliteSchemaInitializer
                 ColorScheme INTEGER NOT NULL DEFAULT 0,
                 UnitSystem INTEGER NOT NULL DEFAULT 0,
                 PinCalorieSummary INTEGER NOT NULL DEFAULT 1,
+                SummaryStyle INTEGER NOT NULL DEFAULT 0,
                 CompactCalorieSummary INTEGER NOT NULL DEFAULT 0,
                 ShowFoodsInBottomNav INTEGER NOT NULL DEFAULT 1,
                 UpdatedAtUtc TEXT NOT NULL
@@ -162,6 +163,12 @@ public sealed class PersonalSqliteSchemaInitializer
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "PinCalorieSummary", "INTEGER NOT NULL DEFAULT 1", ct);
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "CompactCalorieSummary", "INTEGER NOT NULL DEFAULT 0", ct);
+        var addedSummaryStyle = await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "SummaryStyle", "INTEGER NOT NULL DEFAULT 0", ct);
+        if (addedSummaryStyle)
+        {
+            // Upgrade previous CompactCalorieSummary toggle users cleanly to Minimal (2)
+            await _engine.ExecuteAsync("UPDATE UserProfiles SET SummaryStyle = 2 WHERE CompactCalorieSummary = 1 AND SummaryStyle = 0;", null, ct);
+        }
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ShowFoodsInBottomNav", "INTEGER NOT NULL DEFAULT 1", ct);
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "FoodLogEntries", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
@@ -331,19 +338,21 @@ public sealed class FoodsSqliteSchemaInitializer
 
 internal static class SqliteSchemaHelpers
 {
-    public static async Task EnsureColumnAsync(ISqliteEngine engine, string table, string column, string definition, CancellationToken ct)
+    public static async Task<bool> EnsureColumnAsync(ISqliteEngine engine, string table, string column, string definition, CancellationToken ct)
     {
         var cols = await engine.QueryAsync($"PRAGMA table_info({table});", null, ct);
         var exists = cols.Any(c => string.Equals(RowReader.GetString(c, "name"), column, StringComparison.OrdinalIgnoreCase));
-        if (exists) return;
+        if (exists) return false;
 
         try
         {
             await engine.ExecuteAsync($"ALTER TABLE {table} ADD COLUMN {column} {definition};", null, ct);
+            return true;
         }
         catch (Exception ex) when (ex.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase))
         {
             // Safe ignore if column already existed or was added concurrently
+            return false;
         }
     }
 }

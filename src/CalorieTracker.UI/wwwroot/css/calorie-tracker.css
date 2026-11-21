@@ -415,6 +415,27 @@ html, body {
     font-weight: 600;
 }
 
+.ct-ring-wrap.ct-ring-compact {
+    width: 92px;
+    height: 92px;
+}
+
+.ct-ring-wrap.ct-ring-compact .ct-ring-kcal {
+    font-size: 1.12rem;
+}
+
+.ct-ring-wrap.ct-ring-compact .ct-ring-sub {
+    font-size: 0.64rem;
+}
+
+.ct-summary-ring-compact {
+    padding: 10px 14px !important;
+}
+
+.ct-summary-ring-compact .ct-stat-val {
+    font-size: 1.05rem;
+}
+
 .ct-summary-compact {
     padding: 10px 14px !important;
 }
@@ -781,6 +802,10 @@ html, body {
     border-radius: 12px;
     padding: 3px;
     gap: 4px;
+}
+
+.ct-tabs.ct-tabs-3 {
+    grid-template-columns: repeat(3, 1fr);
 }
 
 .ct-tab {

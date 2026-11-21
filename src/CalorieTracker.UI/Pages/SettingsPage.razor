@@ -171,21 +171,23 @@
         </div>
 
         <div class="ct-card">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:160px;">
-                    <h2 class="ct-card-title">Calorie Summary Style</h2>
-                    <div class="ct-muted">Compact bar or full calorie ring</div>
-                </div>
-                <div class="ct-tabs" style="width:190px; flex-shrink:0;">
-                    <button type="button" class="ct-tab @(!_profile.CompactCalorieSummary ? "active" : "")"
-                            @onclick="() => SetCompactCalorieSummaryAsync(false)">
-                        Standard
-                    </button>
-                    <button type="button" class="ct-tab @(_profile.CompactCalorieSummary ? "active" : "")"
-                            @onclick="() => SetCompactCalorieSummaryAsync(true)">
-                        Compact
-                    </button>
-                </div>
+            <div>
+                <h2 class="ct-card-title">Calorie Summary Style</h2>
+                <div class="ct-muted">Choose full ring, compact ring, or minimal bar</div>
+            </div>
+            <div class="ct-tabs ct-tabs-3" style="margin-top:10px;">
+                <button type="button" class="ct-tab @(_profile.SummaryStyle == CalorieSummaryStyle.Standard ? "active" : "")"
+                        @onclick="() => SetSummaryStyleAsync(CalorieSummaryStyle.Standard)">
+                    Standard
+                </button>
+                <button type="button" class="ct-tab @(_profile.SummaryStyle == CalorieSummaryStyle.Compact ? "active" : "")"
+                        @onclick="() => SetSummaryStyleAsync(CalorieSummaryStyle.Compact)">
+                    Compact
+                </button>
+                <button type="button" class="ct-tab @(_profile.SummaryStyle == CalorieSummaryStyle.Minimal ? "active" : "")"
+                        @onclick="() => SetSummaryStyleAsync(CalorieSummaryStyle.Minimal)">
+                    Minimal
+                </button>
             </div>
 
             <div class="ct-setting-divider"></div>
@@ -923,9 +925,9 @@
         await ProfileRepo.SaveAsync(_profile);
     }
 
-    private async Task SetCompactCalorieSummaryAsync(bool compact)
+    private async Task SetSummaryStyleAsync(CalorieSummaryStyle style)
     {
-        _profile.CompactCalorieSummary = compact;
+        _profile.SummaryStyle = style;
         await ProfileRepo.SaveAsync(_profile);
     }
 

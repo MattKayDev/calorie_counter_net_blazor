@@ -45,7 +45,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 ColorScheme = (ColorScheme)RowReader.GetInt(r, "ColorScheme"),
                 UnitSystem = (UnitSystem)RowReader.GetInt(r, "UnitSystem"),
                 PinCalorieSummary = RowReader.GetInt(r, "PinCalorieSummary", 1) != 0,
-                CompactCalorieSummary = RowReader.GetInt(r, "CompactCalorieSummary", 0) != 0,
+                SummaryStyle = (CalorieSummaryStyle)RowReader.GetInt(r, "SummaryStyle", 0),
                 ShowFoodsInBottomNav = RowReader.GetInt(r, "ShowFoodsInBottomNav", 1) != 0,
                 UpdatedAtUtc = RowReader.GetDateTime(r, "UpdatedAtUtc")
             };
@@ -65,7 +65,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 Id, DailyCalorieGoal, ProteinGoalG, CarbsGoalG, FatGoalG, SaturatedFatGoalG,
                 SugarGoalG, SaltGoalG, FibreGoalG, HeightCm, AgeYears, BiologicalSex, ActivityLevel,
                 GoalWeightKg, WeeklyWeightChangeKg, DailyWaterGoalMl, ThemeMode, ColorScheme, UnitSystem,
-                PinCalorieSummary, CompactCalorieSummary, ShowFoodsInBottomNav, UpdatedAtUtc
+                PinCalorieSummary, SummaryStyle, ShowFoodsInBottomNav, UpdatedAtUtc
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(Id) DO UPDATE SET
                 DailyCalorieGoal = excluded.DailyCalorieGoal,
@@ -87,7 +87,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 ColorScheme = excluded.ColorScheme,
                 UnitSystem = excluded.UnitSystem,
                 PinCalorieSummary = excluded.PinCalorieSummary,
-                CompactCalorieSummary = excluded.CompactCalorieSummary,
+                SummaryStyle = excluded.SummaryStyle,
                 ShowFoodsInBottomNav = excluded.ShowFoodsInBottomNav,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
             """,
@@ -98,7 +98,7 @@ public sealed class SqliteUserProfileRepository : IUserProfileRepository
                 profile.FibreGoalG, profile.HeightCm, profile.AgeYears, (int)profile.BiologicalSex,
                 (int)profile.ActivityLevel, profile.GoalWeightKg, profile.WeeklyWeightChangeKg,
                 profile.DailyWaterGoalMl, (int)profile.ThemeMode, (int)profile.ColorScheme, (int)profile.UnitSystem,
-                profile.PinCalorieSummary ? 1 : 0, profile.CompactCalorieSummary ? 1 : 0, profile.ShowFoodsInBottomNav ? 1 : 0,
+                profile.PinCalorieSummary ? 1 : 0, (int)profile.SummaryStyle, profile.ShowFoodsInBottomNav ? 1 : 0,
                 profile.UpdatedAtUtc.ToString("O")
             },
             ct);
