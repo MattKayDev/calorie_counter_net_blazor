@@ -293,6 +293,24 @@ public class SqliteRepositoryAndLookupTests
     }
 
     [Fact]
+    public void GoalWeightCalculator_AlignsWeeklyPaceDirectionToGoalWeight()
+    {
+        // Losing goal flips positive/zero pace to loss, keeps existing loss pace
+        Assert.Equal(-0.25, GoalWeightCalculator.AlignWeeklyPaceToGoal(85, 78, 0.25));
+        Assert.Equal(-0.5, GoalWeightCalculator.AlignWeeklyPaceToGoal(85, 78, 0.0));
+        Assert.Equal(-0.75, GoalWeightCalculator.AlignWeeklyPaceToGoal(85, 78, -0.75));
+
+        // Gaining goal flips negative/zero pace to gain (capped at +0.5), keeps existing gain pace
+        Assert.Equal(0.5, GoalWeightCalculator.AlignWeeklyPaceToGoal(70, 78, -1.0));
+        Assert.Equal(0.25, GoalWeightCalculator.AlignWeeklyPaceToGoal(70, 78, -0.25));
+        Assert.Equal(0.25, GoalWeightCalculator.AlignWeeklyPaceToGoal(70, 78, 0.0));
+        Assert.Equal(0.5, GoalWeightCalculator.AlignWeeklyPaceToGoal(70, 78, 0.5));
+
+        // Equal goal resets pace to maintain (0.0)
+        Assert.Equal(0.0, GoalWeightCalculator.AlignWeeklyPaceToGoal(80, 80, -0.5));
+    }
+
+    [Fact]
     public void UsdaParser_ExtractsNutrientsAndConvertsSodiumToSalt()
     {
         const string json = """

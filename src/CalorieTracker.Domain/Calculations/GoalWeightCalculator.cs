@@ -60,6 +60,27 @@ public static class GoalWeightCalculator
     }
 
     /// <summary>
+    /// Aligns the weekly weight-change pace sign with the target direction (losing, gaining, or maintaining).
+    /// Returns a value matching one of the UI weekly pace presets.
+    /// </summary>
+    public static double AlignWeeklyPaceToGoal(double currentWeightKg, double goalWeightKg, double currentPaceKgPerWeek)
+    {
+        var diff = goalWeightKg - currentWeightKg;
+        if (Math.Abs(diff) < 0.05) return 0.0;
+
+        if (diff < 0)
+        {
+            if (currentPaceKgPerWeek < 0) return currentPaceKgPerWeek;
+            var mag = Math.Abs(currentPaceKgPerWeek);
+            return mag > 0 ? -mag : -0.5;
+        }
+
+        if (currentPaceKgPerWeek > 0) return currentPaceKgPerWeek;
+        var gainMag = Math.Min(0.5, Math.Abs(currentPaceKgPerWeek));
+        return gainMag > 0 ? gainMag : 0.25;
+    }
+
+    /// <summary>
     /// Projects when a user will reach their goal weight given their current weight, TDEE, and daily calorie intake.
     /// </summary>
     public static GoalProjectionResult ProjectGoalDate(

@@ -1,4 +1,5 @@
 @page "/settings"
+@using System.Globalization
 @inject IUserProfileRepository ProfileRepo
 @inject IBodyMeasurementRepository BodyRepo
 @inject IMealSlotRepository SlotRepo
@@ -6,6 +7,7 @@
 @inject IFileDownloadService FileDownload
 @inject IThemeService ThemeService
 @inject IAppUpdateService AppUpdate
+@inject DiaryService Diary
 @inject NavigationManager Nav
 
 <div class="ct-topbar">
@@ -160,13 +162,24 @@
     {
         <div class="ct-card">
             <div class="ct-muted" style="margin-bottom:12px;">
-                Calculates your BMR, TDEE, recommended daily calories, and projected target date.
+                Calculates your BMR, TDEE, estimated daily calories, and projected target date.
             </div>
+
+            @if (_latestWeightKg is null)
+            {
+                <div class="ct-field" style="margin-bottom:12px;">
+                    <label class="ct-label">Current Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
+                    <input class="ct-input" type="number" inputmode="decimal" step="0.1"
+                           placeholder="Required to estimate daily calories"
+                           value="@_currentWeightText" @oninput="OnCurrentWeightInput" @onchange="OnCurrentWeightInput" />
+                </div>
+            }
 
             <div class="ct-grid-2">
                 <div class="ct-field">
                     <label class="ct-label">Goal Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
-                    <input class="ct-input" type="number" step="0.1" @bind="_goalWeightInput" />
+                    <input class="ct-input" type="number" inputmode="decimal" step="0.1"
+                           value="@_goalWeightText" @oninput="OnGoalWeightInput" @onchange="OnGoalWeightInput" />
                 </div>
                 <div class="ct-field">
                     <label class="ct-label">Target Weekly Pace</label>
@@ -182,7 +195,7 @@
                 </div>
                 <div class="ct-field">
                     <label class="ct-label">Age (years)</label>
-                    <input class="ct-input" type="number" min="13" max="120" @bind="_profile.AgeYears" />
+                    <input class="ct-input" type="number" min="13" max="120" @bind="_profile.AgeYears" @bind:event="oninput" />
                 </div>
                 <div class="ct-field">
                     <label class="ct-label">Activity Level</label>
@@ -197,24 +210,64 @@
             </div>
 
             @{
-                var tdee = GoalWeightCalculator.CalculateTdee(_latestWeightKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
+                var effectiveCurrentKg = GetEffectiveCurrentWeightKg();
+                var effectiveGoalKg = GetEffectiveGoalWeightKg();
+                var tdee = GoalWeightCalculator.CalculateTdee(effectiveCurrentKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
                 var recommended = tdee.HasValue ? GoalWeightCalculator.CalculateRecommendedDailyCalories(tdee.Value, _profile.WeeklyWeightChangeKg) : (double?)null;
+                var caloriesDiffer = recommended.HasValue && Math.Abs(Math.Round(_profile.DailyCalorieGoal) - Math.Round(recommended.Value)) >= 1;
+                var projection = (tdee.HasValue && recommended.HasValue && effectiveCurrentKg.HasValue && effectiveGoalKg.HasValue)
+                    ? GoalWeightCalculator.ProjectGoalDate(DateOnly.FromDateTime(DateTime.Today), effectiveCurrentKg.Value, effectiveGoalKg.Value, tdee.Value, recommended.Value)
+                    : null;
             }
             @if (recommended is double rec)
             {
-                <div class="ct-alert ct-alert-info" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
-                    <span>TDEE ~@tdee!.Value.ToString("0") kcal • Recommended: <strong>@rec.ToString("0") kcal/day</strong></span>
-                    <button class="ct-btn ct-btn-primary ct-btn-sm" @onclick="() => ApplyRecommendedCaloriesAsync(rec)">Apply &amp; Save</button>
+                <div class="ct-alert ct-alert-info" style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
+                    <div>
+                        <div>Estimated daily calories: <strong>@rec.ToString("0") kcal/day</strong></div>
+                        <div style="font-size:0.78rem; opacity:0.88; margin-top:2px;">
+                            TDEE ~@tdee!.Value.ToString("0") kcal
+                            @if (projection is not null)
+                            {
+                                @if (projection.AlreadyReached)
+                                {
+                                    <span> • Goal weight reached</span>
+                                }
+                                else if (projection.IsMovingTowardGoal && projection.EstimatedDate.HasValue)
+                                {
+                                    <span> • Est. goal: @projection.EstimatedDate.Value.ToString("d MMM yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span> • Adjust pace to match goal direction</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                    @if (caloriesDiffer)
+                    {
+                        <button class="ct-btn ct-btn-primary ct-btn-sm" style="flex-shrink:0;" @onclick="() => ApplyRecommendedCaloriesAsync(rec)">Apply &amp; Save</button>
+                    }
                 </div>
             }
             else
             {
                 <div class="ct-alert ct-alert-warn" style="margin-bottom:12px;">
-                    Log your current Weight in <strong>Progress</strong> and set your Height in <strong>Profile &amp; Units</strong> to see your recommended daily calories.
+                    @if (!effectiveCurrentKg.HasValue && _profile.HeightCm is not > 0)
+                    {
+                        <span>Enter your <strong>Current Weight</strong> above and set your <strong>Height</strong> in <strong>Profile &amp; Units</strong> to see estimated daily calories.</span>
+                    }
+                    else if (!effectiveCurrentKg.HasValue)
+                    {
+                        <span>Enter your <strong>Current Weight</strong> above to see estimated daily calories for your goal.</span>
+                    }
+                    else
+                    {
+                        <span>Set your <strong>Height</strong> in <strong>Profile &amp; Units</strong> to see estimated daily calories.</span>
+                    }
                 </div>
             }
 
-            <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveProfileAsync">
+            <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveGoalSettingsAsync">
                 Save Goal Settings
             </button>
         </div>
@@ -488,6 +541,69 @@
     </div>
 }
 
+@if (_currentWeightModalOpen)
+{
+    <div class="ct-modal-backdrop" @onclick="() => _currentWeightModalOpen = false">
+        <div class="ct-modal" @onclick:stopPropagation="true">
+            <div class="ct-modal-head">
+                <strong>Enter Current Weight</strong>
+                <button class="ct-icon-btn" @onclick="() => _currentWeightModalOpen = false"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
+            </div>
+            <div class="ct-modal-body">
+                <div class="ct-muted" style="margin-bottom:12px;">
+                    Enter your current weight so we can calculate your estimated daily calories for your goal.
+                </div>
+
+                <div class="ct-field">
+                    <label class="ct-label">Current Weight (@UnitConverter.WeightUnitLabel(_profile.UnitSystem))</label>
+                    <input class="ct-input" type="number" inputmode="decimal" step="0.1"
+                           placeholder="Enter weight"
+                           value="@_popupWeightText" @oninput="OnPopupWeightInput" @onchange="OnPopupWeightInput" />
+                </div>
+
+                @{
+                    var popupCurrentKg = ConvertWeightInputToKg(ParsePositiveWeightInput(_popupWeightText));
+                    var popupGoalKg = GetEffectiveGoalWeightKg();
+                    var popupPace = (popupCurrentKg.HasValue && popupGoalKg.HasValue)
+                        ? GoalWeightCalculator.AlignWeeklyPaceToGoal(popupCurrentKg.Value, popupGoalKg.Value, _profile.WeeklyWeightChangeKg)
+                        : _profile.WeeklyWeightChangeKg;
+                    var popupTdee = GoalWeightCalculator.CalculateTdee(popupCurrentKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
+                    var popupRec = popupTdee.HasValue ? GoalWeightCalculator.CalculateRecommendedDailyCalories(popupTdee.Value, popupPace) : (double?)null;
+                    var popupCaloriesDiffer = popupRec.HasValue && Math.Abs(Math.Round(_profile.DailyCalorieGoal) - Math.Round(popupRec.Value)) >= 1;
+                }
+
+                @if (popupRec is double pRec)
+                {
+                    <div class="ct-alert ct-alert-info" style="margin-top:8px;">
+                        Estimated daily calories: <strong>@pRec.ToString("0") kcal/day</strong> (TDEE ~@popupTdee!.Value.ToString("0") kcal)
+                    </div>
+                }
+
+                <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+                    @if (popupRec is double applyRec && popupCaloriesDiffer)
+                    {
+                        <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="() => ConfirmPopupCurrentWeightAsync(applyCalories: true)">
+                            Apply @applyRec.ToString("0") kcal &amp; Save
+                        </button>
+                        <button class="ct-btn ct-btn-soft" style="width:100%;" @onclick="() => ConfirmPopupCurrentWeightAsync(applyCalories: false)">
+                            Save Weight &amp; Goal Only
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="ct-btn ct-btn-primary" style="width:100%;" disabled="@(!popupCurrentKg.HasValue)" @onclick="() => ConfirmPopupCurrentWeightAsync(applyCalories: false)">
+                            Save Weight &amp; Goals
+                        </button>
+                    }
+                    <button class="ct-btn ct-btn-outline" style="width:100%;" @onclick="SkipCurrentWeightPopupAsync">
+                        Skip for now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private enum SettingsSection
     {
@@ -509,7 +625,10 @@
     private List<MealSlot> _slots = new();
     private bool _waterEnabled;
     private double? _latestWeightKg;
-    private double? _goalWeightInput;
+    private string _goalWeightText = string.Empty;
+    private string _currentWeightText = string.Empty;
+    private bool _currentWeightModalOpen;
+    private string _popupWeightText = string.Empty;
     private string _newSlotName = string.Empty;
     private string _newSlotIcon = AppIcons.MealMain;
     private bool _slotModalOpen;
@@ -555,8 +674,12 @@
         var allSlots = await SlotRepo.GetAllAsync(includeArchived: true);
         _slots = allSlots.Where(s => !s.IsArchived).ToList();
         _waterEnabled = allSlots.Any(s => s.IsWaterTracker && !s.IsArchived);
-        var latest = await BodyRepo.GetLatestAsync();
-        _latestWeightKg = latest?.WeightKg;
+        var allBody = await BodyRepo.GetAllAsync();
+        _latestWeightKg = allBody.FirstOrDefault(m => m.WeightKg is > 0)?.WeightKg;
+        if (_latestWeightKg.HasValue)
+        {
+            _currentWeightText = string.Empty;
+        }
         SyncGoalWeightInput();
     }
 
@@ -630,30 +753,83 @@
 
     private Task ApplyUpdateAsync() => AppUpdate.ApplyUpdateAsync();
 
+    private static double? ParsePositiveWeightInput(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var normalized = text.Trim().Replace(',', '.');
+        return double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var value) && value > 0
+            ? value
+            : null;
+    }
+
+    private double? ConvertWeightInputToKg(double? input)
+    {
+        if (input is not > 0) return null;
+        return _profile.UnitSystem == UnitSystem.Metric
+            ? input.Value
+            : UnitConverter.LbsToKg(input.Value);
+    }
+
+    private string FormatWeightInput(double kg)
+    {
+        var displayVal = _profile.UnitSystem == UnitSystem.Metric ? kg : UnitConverter.KgToLbs(kg);
+        return Math.Round(displayVal, 2).ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private double? GetEffectiveCurrentWeightKg() =>
+        _latestWeightKg ?? ConvertWeightInputToKg(ParsePositiveWeightInput(_currentWeightText));
+
+    private double? GetEffectiveGoalWeightKg() =>
+        ConvertWeightInputToKg(ParsePositiveWeightInput(_goalWeightText));
+
     private void SyncGoalWeightInput()
     {
-        if (_profile.GoalWeightKg is double gw)
+        _goalWeightText = _profile.GoalWeightKg is double gw ? FormatWeightInput(gw) : string.Empty;
+    }
+
+    private void SyncGoalWeightToProfile()
+    {
+        _profile.GoalWeightKg = GetEffectiveGoalWeightKg();
+    }
+
+    private void AlignPaceIfBothWeightsKnown(double? currentKg, double? goalKg)
+    {
+        if (currentKg is > 0 && goalKg is > 0)
         {
-            _goalWeightInput = _profile.UnitSystem == UnitSystem.Metric ? gw : UnitConverter.KgToLbs(gw);
+            _profile.WeeklyWeightChangeKg = GoalWeightCalculator.AlignWeeklyPaceToGoal(
+                currentKg.Value,
+                goalKg.Value,
+                _profile.WeeklyWeightChangeKg);
         }
-        else
-        {
-            _goalWeightInput = null;
-        }
+    }
+
+    private void OnGoalWeightInput(ChangeEventArgs e)
+    {
+        _goalWeightText = e.Value?.ToString() ?? string.Empty;
+        AlignPaceIfBothWeightsKnown(GetEffectiveCurrentWeightKg(), GetEffectiveGoalWeightKg());
+    }
+
+    private void OnCurrentWeightInput(ChangeEventArgs e)
+    {
+        _currentWeightText = e.Value?.ToString() ?? string.Empty;
+        AlignPaceIfBothWeightsKnown(GetEffectiveCurrentWeightKg(), GetEffectiveGoalWeightKg());
+    }
+
+    private void OnPopupWeightInput(ChangeEventArgs e)
+    {
+        _popupWeightText = e.Value?.ToString() ?? string.Empty;
     }
 
     private void OnUnitSystemChanged(ChangeEventArgs e)
     {
         if (Enum.TryParse<UnitSystem>(e.Value?.ToString(), out var next))
         {
-            if (_goalWeightInput.HasValue)
-            {
-                _profile.GoalWeightKg = _profile.UnitSystem == UnitSystem.Metric
-                    ? _goalWeightInput
-                    : UnitConverter.LbsToKg(_goalWeightInput.Value);
-            }
+            var currentGoalKg = GetEffectiveGoalWeightKg();
+            var currentTypedKg = ConvertWeightInputToKg(ParsePositiveWeightInput(_currentWeightText));
+            _profile.GoalWeightKg = currentGoalKg;
             _profile.UnitSystem = next;
             SyncGoalWeightInput();
+            _currentWeightText = currentTypedKg is double curKg ? FormatWeightInput(curKg) : string.Empty;
         }
     }
 
@@ -671,28 +847,99 @@
         await ThemeService.ApplyThemeAsync(_profile.ThemeMode, _profile.ColorScheme);
     }
 
+    private async Task SaveInitialCurrentWeightAsync(double weightKg)
+    {
+        var measurement = new BodyMeasurement
+        {
+            Id = Guid.NewGuid(),
+            Date = DateOnly.FromDateTime(DateTime.Today),
+            WeightKg = weightKg,
+            HeightCm = _profile.HeightCm
+        };
+        await Diary.SaveBodyMeasurementAsync(measurement);
+        _latestWeightKg = weightKg;
+        _currentWeightText = string.Empty;
+    }
+
     private async Task ApplyRecommendedCaloriesAsync(double recommended)
     {
-        _profile.DailyCalorieGoal = recommended;
-        await SaveProfileAsync();
-        _status = $"Applied {recommended:0} kcal/day and saved your goals!";
+        var rounded = Math.Round(recommended, 0);
+        _profile.DailyCalorieGoal = rounded;
+        SyncGoalWeightToProfile();
+        await ProfileRepo.SaveAsync(_profile);
+
+        if (_latestWeightKg is null && ConvertWeightInputToKg(ParsePositiveWeightInput(_currentWeightText)) is double enteredKg)
+        {
+            await SaveInitialCurrentWeightAsync(enteredKg);
+        }
+
+        _status = $"Applied {rounded:0} kcal/day and saved your goals!";
     }
 
     private async Task SaveProfileAsync()
     {
-        if (_goalWeightInput.HasValue && _goalWeightInput.Value > 0)
+        SyncGoalWeightToProfile();
+        await ProfileRepo.SaveAsync(_profile);
+        _status = "Saved!";
+    }
+
+    private async Task SaveGoalSettingsAsync()
+    {
+        SyncGoalWeightToProfile();
+
+        if (_latestWeightKg is null)
         {
-            _profile.GoalWeightKg = _profile.UnitSystem == UnitSystem.Metric
-                ? _goalWeightInput.Value
-                : UnitConverter.LbsToKg(_goalWeightInput.Value);
-        }
-        else
-        {
-            _profile.GoalWeightKg = null;
+            if (ConvertWeightInputToKg(ParsePositiveWeightInput(_currentWeightText)) is double enteredKg)
+            {
+                await ProfileRepo.SaveAsync(_profile);
+                await SaveInitialCurrentWeightAsync(enteredKg);
+                _status = "Saved your current weight and goal settings!";
+                return;
+            }
+
+            if (_profile.GoalWeightKg.HasValue)
+            {
+                _popupWeightText = string.Empty;
+                _currentWeightModalOpen = true;
+                return;
+            }
         }
 
         await ProfileRepo.SaveAsync(_profile);
         _status = "Saved!";
+    }
+
+    private async Task ConfirmPopupCurrentWeightAsync(bool applyCalories)
+    {
+        if (ConvertWeightInputToKg(ParsePositiveWeightInput(_popupWeightText)) is not double weightKg)
+            return;
+
+        SyncGoalWeightToProfile();
+        AlignPaceIfBothWeightsKnown(weightKg, _profile.GoalWeightKg);
+
+        double? appliedRec = null;
+        if (applyCalories)
+        {
+            var tdee = GoalWeightCalculator.CalculateTdee(weightKg, _profile.HeightCm, _profile.AgeYears, _profile.BiologicalSex, _profile.ActivityLevel);
+            if (tdee.HasValue)
+            {
+                appliedRec = Math.Round(GoalWeightCalculator.CalculateRecommendedDailyCalories(tdee.Value, _profile.WeeklyWeightChangeKg), 0);
+                _profile.DailyCalorieGoal = appliedRec.Value;
+            }
+        }
+
+        await ProfileRepo.SaveAsync(_profile);
+        await SaveInitialCurrentWeightAsync(weightKg);
+        _currentWeightModalOpen = false;
+        _status = appliedRec.HasValue
+            ? $"Applied {appliedRec.Value:0} kcal/day and saved your weight & goals!"
+            : "Saved your current weight and goal settings!";
+    }
+
+    private async Task SkipCurrentWeightPopupAsync()
+    {
+        _currentWeightModalOpen = false;
+        await SaveProfileAsync();
     }
 
     private async Task MoveSlotAsync(int index, int delta)

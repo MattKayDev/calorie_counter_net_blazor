@@ -974,6 +974,10 @@ html, body {
 .ct-alert-warn { background: #fef3c7; color: #92400e; }
 .ct-alert-error { background: var(--ct-red-light); color: #991b1b; }
 
+[data-theme="dark"] .ct-alert-info { background: rgba(59, 130, 246, 0.16); color: #bfdbfe; }
+[data-theme="dark"] .ct-alert-warn { background: rgba(245, 158, 11, 0.16); color: #fde68a; }
+[data-theme="dark"] .ct-alert-error { background: rgba(239, 68, 68, 0.18); color: #fecaca; }
+
 .ct-scanner-box {
     width: 100%;
     min-height: 240px;
