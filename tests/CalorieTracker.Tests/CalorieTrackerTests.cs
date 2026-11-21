@@ -753,4 +753,64 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal(0.9, saved.FibrePer100G);
         Assert.Equal(0.25, saved.SaltPer100G);
     }
+
+    [Fact]
+    public async Task FoodRepository_GetBySourceAsync_ReturnsOnlyMatchingSourceAndFiltersLocally()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+
+        var customOats = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Overnight Oats",
+            Brand = "Homemade Kitchen",
+            Barcode = "5099900012345",
+            Source = FoodSource.Custom,
+            CaloriesPer100G = 320
+        });
+        await Task.Delay(5);
+        var customShake = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Berry Smoothie",
+            Brand = "BlendCo",
+            Source = FoodSource.Custom,
+            MeasurementUnit = "ml",
+            CaloriesPer100G = 85
+        });
+        var offOats = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Rolled Oats",
+            Brand = "Quaker",
+            Barcode = "5000108001234",
+            ExternalId = "off:5000108001234",
+            Source = FoodSource.OpenFoodFacts,
+            CaloriesPer100G = 374
+        });
+
+        // Returns only FoodSource.Custom items when query is null/blank
+        var allCustom = await foodRepo.GetBySourceAsync(FoodSource.Custom);
+        Assert.Equal(2, allCustom.Count);
+        Assert.DoesNotContain(allCustom, f => f.Id == offOats.Id);
+
+        // Filters custom items case-insensitively by Name, Brand, and partial Barcode, excluding OpenFoodFacts items even when Name matches
+        var byName = await foodRepo.GetBySourceAsync(FoodSource.Custom, "oats");
+        Assert.Single(byName);
+        Assert.Equal(customOats.Id, byName[0].Id);
+
+        var byBrand = await foodRepo.GetBySourceAsync(FoodSource.Custom, "blendco");
+        Assert.Single(byBrand);
+        Assert.Equal(customShake.Id, byBrand[0].Id);
+
+        var byBarcode = await foodRepo.GetBySourceAsync(FoodSource.Custom, "99000123");
+        Assert.Single(byBarcode);
+        Assert.Equal(customOats.Id, byBarcode[0].Id);
+
+        // Soft-deleted custom items are excluded
+        await foodRepo.SoftDeleteAsync(customShake.Id);
+        var remainingCustom = await foodRepo.GetBySourceAsync(FoodSource.Custom);
+        Assert.Single(remainingCustom);
+        Assert.Equal(customOats.Id, remainingCustom[0].Id);
+    }
 }

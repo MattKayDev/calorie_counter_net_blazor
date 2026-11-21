@@ -228,6 +228,33 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
         return rows.Select(Map).ToList();
     }
 
+    public async Task<List<FoodItem>> GetBySourceAsync(FoodSource source, string? query = null, int limit = 200, CancellationToken ct = default)
+    {
+        await _init.EnsureCreatedAsync(ct);
+        var trimmed = query?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            var rows = await _engine.QueryAsync(
+                "SELECT * FROM FoodItems WHERE Source = ? AND IsDeleted = 0 ORDER BY UpdatedAtUtc DESC LIMIT ?;",
+                new object?[] { (int)source, limit },
+                ct);
+            return rows.Select(Map).ToList();
+        }
+
+        var pattern = $"%{trimmed}%";
+        var filteredRows = await _engine.QueryAsync("""
+            SELECT * FROM FoodItems
+            WHERE Source = ?
+              AND IsDeleted = 0
+              AND (Name LIKE ? COLLATE NOCASE OR Brand LIKE ? COLLATE NOCASE OR Barcode LIKE ? COLLATE NOCASE)
+            ORDER BY Name ASC
+            LIMIT ?;
+            """,
+            new object?[] { (int)source, pattern, pattern, pattern, limit },
+            ct);
+        return filteredRows.Select(Map).ToList();
+    }
+
     public async Task<FoodItem> UpsertAsync(FoodItem item, CancellationToken ct = default)
     {
         await _init.EnsureCreatedAsync(ct);

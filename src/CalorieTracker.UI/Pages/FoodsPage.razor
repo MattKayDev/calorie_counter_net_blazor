@@ -18,9 +18,10 @@
 </div>
 
 <div class="ct-page">
-    <div class="ct-tabs">
-        <button class="ct-tab @(_tab == 0 ? "active" : "")" @onclick="() => _tab = 0">Food Library</button>
-        <button class="ct-tab @(_tab == 1 ? "active" : "")" @onclick="() => _tab = 1">Saved Meals (@_meals.Count)</button>
+    <div class="ct-tabs ct-tabs-3">
+        <button class="ct-tab @(_tab == 0 ? "active" : "")" @onclick="() => SelectTab(0)">All Foods</button>
+        <button class="ct-tab @(_tab == 1 ? "active" : "")" @onclick="() => SelectTab(1)">Custom (@_allCustomCount)</button>
+        <button class="ct-tab @(_tab == 2 ? "active" : "")" @onclick="() => SelectTab(2)">Meals (@_meals.Count)</button>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(_notice))
@@ -76,30 +77,46 @@
                 <div style="display:flex; flex-direction:column; gap:8px;">
                     @foreach (var f in _foods)
                     {
-                        <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
-                            <div style="@(f.Source == FoodSource.Custom ? "cursor:pointer; flex:1; min-width:0;" : "flex:1; min-width:0;")"
-                                 @onclick="() => { if (f.Source == FoodSource.Custom) OpenEditFoodModal(f); }">
-                                <div class="ct-entry-name">
-                                    @f.Name
-                                    @if (f.Source == FoodSource.Custom)
-                                    {
-                                        <span class="ct-badge ct-badge-green" style="margin-left:4px;">Custom</span>
-                                    }
-                                </div>
-                                <div class="ct-entry-meta">
-                                    @(string.IsNullOrWhiteSpace(f.Brand) ? "No brand" : f.Brand)
-                                    • @f.CaloriesPer100G.ToString("0") kcal / 100@f.UnitLabel
-                                    • P @f.ProteinPer100G.ToString("0.#")g • C @f.CarbsPer100G.ToString("0.#")g • F @f.FatPer100G.ToString("0.#")g
-                                </div>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
-                                @if (f.Source == FoodSource.Custom)
-                                {
-                                    <button class="ct-icon-btn" title="Edit custom food" aria-label="Edit custom food" @onclick="() => OpenEditFoodModal(f)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
-                                }
-                                <button class="ct-icon-btn" title="Delete" aria-label="Delete food" @onclick="() => DeleteFoodAsync(f.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
-                            </div>
-                        </div>
+                        @RenderFoodRow(f)
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (_tab == 1)
+    {
+        <div class="ct-card">
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input class="ct-input" placeholder="Filter custom foods..."
+                       value="@_customQuery" @oninput="OnCustomSearchInput" @onchange="OnCustomSearchChange" />
+                <button class="ct-btn ct-btn-primary" @onclick="OpenNewFoodModal">Add</button>
+            </div>
+
+            <div class="ct-muted" style="margin-bottom:8px;">
+                Showing @_customFoods.Count custom food(s)
+            </div>
+
+            @if (_customFoods.Count == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(_customQuery))
+                {
+                    <div class="ct-muted" style="text-align:center; padding:24px 0;">
+                        No custom foods matching &ldquo;@_customQuery.Trim()&rdquo;.
+                    </div>
+                }
+                else
+                {
+                    <div class="ct-muted" style="text-align:center; padding:24px 0;">
+                        You haven&apos;t added any custom foods yet. Tap <strong>Add</strong> to create one.
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    @foreach (var f in _customFoods)
+                    {
+                        @RenderFoodRow(f)
                     }
                 </div>
             }
@@ -301,13 +318,17 @@
 @code {
     private int _tab;
     private string _query = string.Empty;
+    private string _customQuery = string.Empty;
     private List<FoodItem> _foods = new();
     private List<FoodItem> _allLocalFoods = new();
+    private List<FoodItem> _customFoods = new();
     private List<Meal> _meals = new();
+    private int _allCustomCount;
     private bool _isSearching;
     private bool _isLookingUpBarcode;
     private string _loadingText = "Searching...";
     private int _searchVersion;
+    private int _customSearchVersion;
     private bool _scannerOpen;
     private bool _foodModalOpen;
     private bool _isEditingFood;
@@ -325,13 +346,87 @@
         await ReloadAsync();
     }
 
+    private void SelectTab(int tab)
+    {
+        _tab = tab;
+        if (tab != 0 && _isSearching)
+        {
+            _searchCts?.Cancel();
+            _isSearching = false;
+        }
+    }
+
     private async Task ReloadAsync()
     {
         _allLocalFoods = await FoodRepo.GetAllAsync(200);
         _foods = string.IsNullOrWhiteSpace(_query)
             ? _allLocalFoods
             : await FoodLookup.SearchLocalAsync(_query);
+        var allCustom = await FoodRepo.GetBySourceAsync(FoodSource.Custom, null, 500);
+        _allCustomCount = allCustom.Count;
+        _customFoods = string.IsNullOrWhiteSpace(_customQuery)
+            ? allCustom
+            : await FoodRepo.GetBySourceAsync(FoodSource.Custom, _customQuery, 200);
         _meals = await MealRepo.GetAllAsync();
+    }
+
+    private RenderFragment RenderFoodRow(FoodItem f) => __builder =>
+    {
+        <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
+            <div style="@(f.Source == FoodSource.Custom ? "cursor:pointer; flex:1; min-width:0;" : "flex:1; min-width:0;")"
+                 @onclick="() => { if (f.Source == FoodSource.Custom) OpenEditFoodModal(f); }">
+                <div class="ct-entry-name">
+                    @f.Name
+                    @if (f.Source == FoodSource.Custom && _tab == 0)
+                    {
+                        <span class="ct-badge ct-badge-green" style="margin-left:4px;">Custom</span>
+                    }
+                </div>
+                <div class="ct-entry-meta">
+                    @(string.IsNullOrWhiteSpace(f.Brand) ? "No brand" : f.Brand)
+                    • @f.CaloriesPer100G.ToString("0") kcal / 100@f.UnitLabel
+                    • P @f.ProteinPer100G.ToString("0.#")g • C @f.CarbsPer100G.ToString("0.#")g • F @f.FatPer100G.ToString("0.#")g
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
+                @if (f.Source == FoodSource.Custom)
+                {
+                    <button class="ct-icon-btn" title="Edit custom food" aria-label="Edit custom food" @onclick="() => OpenEditFoodModal(f)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
+                }
+                <button class="ct-icon-btn" title="Delete" aria-label="Delete food" @onclick="() => DeleteFoodAsync(f.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+            </div>
+        </div>
+    };
+
+    private Task OnCustomSearchInput(ChangeEventArgs e)
+    {
+        var query = e.Value?.ToString() ?? string.Empty;
+        _customQuery = query;
+        _notice = null;
+        return RunCustomSearchAsync(query);
+    }
+
+    private Task OnCustomSearchChange(ChangeEventArgs e)
+    {
+        var query = e.Value?.ToString() ?? string.Empty;
+        if (string.Equals(query, _customQuery, StringComparison.Ordinal))
+            return Task.CompletedTask;
+
+        _customQuery = query;
+        _notice = null;
+        return RunCustomSearchAsync(query);
+    }
+
+    private async Task RunCustomSearchAsync(string query)
+    {
+        var version = ++_customSearchVersion;
+        var limit = string.IsNullOrWhiteSpace(query) ? 500 : 200;
+        var results = await FoodRepo.GetBySourceAsync(FoodSource.Custom, query, limit);
+        if (version != _customSearchVersion) return;
+
+        _customFoods = results;
+        if (string.IsNullOrWhiteSpace(query))
+            _allCustomCount = results.Count;
     }
 
     private Task OnSearchInput(ChangeEventArgs e)
@@ -419,7 +514,15 @@
                 _notice = lookup.FoundLocally
                     ? $"Found \"{lookup.Item.Name}\" in local SQLite database!"
                     : $"Found \"{lookup.Item.Name}\" online and saved to local SQLite!";
-                _query = lookup.Item.Name;
+                if (lookup.Item.Source == FoodSource.Custom && _tab == 1)
+                {
+                    _customQuery = lookup.Item.Name;
+                }
+                else
+                {
+                    _tab = 0;
+                    _query = lookup.Item.Name;
+                }
                 await ReloadAsync();
             }
             else

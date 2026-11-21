@@ -808,6 +808,12 @@ html, body {
     grid-template-columns: repeat(3, 1fr);
 }
 
+.ct-tabs.ct-tabs-3 .ct-tab {
+    padding: 8px 6px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
 .ct-tab {
     border: none;
     background: transparent;

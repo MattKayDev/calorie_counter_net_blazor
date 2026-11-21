@@ -1,3 +1,4 @@
+using CalorieTracker.Domain.Enums;
 using CalorieTracker.Domain.Models;
 
 namespace CalorieTracker.Domain.Repositories;
@@ -21,6 +22,7 @@ public interface IFoodItemRepository
     Task<FoodItem?> GetByBarcodeAsync(string barcode, CancellationToken ct = default);
     Task<List<FoodItem>> SearchAsync(string query, int limit = 40, CancellationToken ct = default);
     Task<List<FoodItem>> GetAllAsync(int limit = 100, CancellationToken ct = default);
+    Task<List<FoodItem>> GetBySourceAsync(FoodSource source, string? query = null, int limit = 200, CancellationToken ct = default);
     Task<FoodItem> UpsertAsync(FoodItem item, CancellationToken ct = default);
     Task UpsertManyAsync(IEnumerable<FoodItem> items, CancellationToken ct = default);
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
