@@ -24,6 +24,8 @@ public sealed class UserProfile
     public ColorScheme ColorScheme { get; set; } = ColorScheme.RoyalBlue;
     public UnitSystem UnitSystem { get; set; } = UnitSystem.Metric;
     public bool PinCalorieSummary { get; set; } = true;
+    public bool CompactCalorieSummary { get; set; } = false;
+    public bool ShowFoodsInBottomNav { get; set; } = true;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

@@ -265,13 +265,21 @@ public class SqliteRepositoryAndLookupTests
         Assert.Contains("UserProfiles", personalTableNames);
         Assert.DoesNotContain("FoodItems", personalTableNames);
 
-        // Verify PinCalorieSummary defaults to true and persists false cleanly
+        // Verify PinCalorieSummary, CompactCalorieSummary, and ShowFoodsInBottomNav defaults and persistence
         var profile = await profileRepo.GetOrCreateAsync();
         Assert.True(profile.PinCalorieSummary);
+        Assert.False(profile.CompactCalorieSummary);
+        Assert.True(profile.ShowFoodsInBottomNav);
+
         profile.PinCalorieSummary = false;
+        profile.CompactCalorieSummary = true;
+        profile.ShowFoodsInBottomNav = false;
         await profileRepo.SaveAsync(profile);
+
         var reloadedProfile = await profileRepo.GetOrCreateAsync();
         Assert.False(reloadedProfile.PinCalorieSummary);
+        Assert.True(reloadedProfile.CompactCalorieSummary);
+        Assert.False(reloadedProfile.ShowFoodsInBottomNav);
     }
 
     [Fact]
@@ -631,6 +639,8 @@ public class SqliteRepositoryAndLookupTests
         var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
         var profile = await profileRepo.GetOrCreateAsync();
         Assert.True(profile.PinCalorieSummary);
+        Assert.False(profile.CompactCalorieSummary);
+        Assert.True(profile.ShowFoodsInBottomNav);
 
         var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
         var item = await foodRepo.UpsertAsync(new FoodItem { Name = "Milk", MeasurementUnit = "ml" });

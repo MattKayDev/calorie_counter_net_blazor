@@ -9,6 +9,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOpenFoodFactsClient, OpenFoodFactsClient>();
         services.AddScoped<IFoodLookupService, FoodLookupService>();
         services.AddScoped<DiaryService>();
+        services.AddScoped<AppLayoutState>();
         return services;
     }
 }

@@ -31,6 +31,19 @@ public interface IAppUpdateService
     Task ApplyUpdateAsync();
 }
 
+public sealed class AppLayoutState
+{
+    public bool ShowFoodsInBottomNav { get; private set; } = true;
+    public event Action? Changed;
+
+    public void SetShowFoodsInBottomNav(bool show)
+    {
+        if (ShowFoodsInBottomNav == show) return;
+        ShowFoodsInBottomNav = show;
+        Changed?.Invoke();
+    }
+}
+
 public sealed class DiaryService
 {
     private readonly IFoodLogRepository _logRepo;

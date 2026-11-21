@@ -415,6 +415,70 @@ html, body {
     font-weight: 600;
 }
 
+.ct-summary-compact {
+    padding: 10px 14px !important;
+}
+
+.ct-compact-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ct-compact-kcal {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    font-size: 1.05rem;
+}
+
+.ct-compact-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ct-compact-left {
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-right: 2px;
+}
+
+.ct-compact-macros {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 0.74rem;
+    color: var(--ct-text-muted);
+    flex-wrap: wrap;
+}
+
+.ct-compact-macros > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.ct-compact-macros strong {
+    color: var(--ct-text);
+}
+
+.ct-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.ct-setting-divider {
+    border-top: 1px solid var(--ct-border);
+    margin: 14px 0;
+}
+
 /* Macro & Nutrient Bars */
 .ct-macro-row {
     display: grid;
@@ -768,6 +832,10 @@ html, body {
     padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
     z-index: 30;
     box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.06);
+}
+
+.ct-bottom-nav.ct-bottom-nav-2 {
+    grid-template-columns: repeat(2, 1fr);
 }
 
 /* Settings Menu Rows */

@@ -418,48 +418,100 @@ else
             <div class="ct-alert ct-alert-success">@_toast</div>
         }
 
-        <div class="ct-card">
-            <div class="ct-summary-grid">
-                <div class="ct-stat-col">
-                    <div class="ct-stat-val">@_profile.DailyCalorieGoal.ToString("0")</div>
-                    <div class="ct-stat-lbl">Goal</div>
+        @if (_profile.CompactCalorieSummary)
+        {
+            var goal = _profile.DailyCalorieGoal;
+            var remaining = goal - _totals.CaloriesKcal;
+            var isOver = _totals.CaloriesKcal > goal;
+            var kcalPct = goal > 0 ? Math.Clamp(_totals.CaloriesKcal / goal * 100.0, 0, 100) : 0;
+            var kcalPctStr = kcalPct.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+
+            <div class="ct-card ct-summary-compact">
+                <div class="ct-compact-head">
+                    <div class="ct-compact-kcal">
+                        <strong>@_totals.CaloriesKcal.ToString("0")</strong>
+                        <span class="ct-muted">/ @goal.ToString("0") kcal</span>
+                    </div>
+                    <div class="ct-compact-right">
+                        <span class="ct-compact-left" style="color:@(isOver ? "var(--ct-red)" : "var(--ct-green-dark)")">
+                            @Math.Abs(remaining).ToString("0") kcal @(isOver ? "over" : "left")
+                        </span>
+                        <button class="ct-icon-btn" style="width:28px; height:28px;" title="Copy Yesterday" aria-label="Copy Yesterday" @onclick="CopyYesterdayAsync">
+                            <AppIcon Name="@AppIcons.Copy" Size="15" />
+                        </button>
+                        <button class="ct-icon-btn" style="width:28px; height:28px;" title="@(_showAllNutrients ? "Hide nutrients" : "All nutrients")" aria-label="Toggle nutrients" @onclick="() => _showAllNutrients = !_showAllNutrients">
+                            <AppIcon Name="@(_showAllNutrients ? AppIcons.ChevronUp : AppIcons.ChevronDown)" Size="15" />
+                        </button>
+                    </div>
                 </div>
 
-                <CalorieRing Consumed="_totals.CaloriesKcal" Goal="_profile.DailyCalorieGoal" />
-
-                <div class="ct-stat-col">
-                    <div class="ct-stat-val" style="color:var(--ct-green-dark)">@_totals.CaloriesKcal.ToString("0")</div>
-                    <div class="ct-stat-lbl">Eaten</div>
+                <div class="ct-bar-track" style="height:7px; margin:7px 0;">
+                    <div class="ct-bar-fill" style="width:@kcalPctStr%; background:@(isOver ? "var(--ct-red)" : "var(--ct-green)");"></div>
                 </div>
-            </div>
 
-            <div class="ct-macro-row">
-                @RenderMacroPill("Carbs", _totals.CarbsG, _profile.CarbsGoalG, "#2563eb")
-                @RenderMacroPill("Protein", _totals.ProteinG, _profile.ProteinGoalG, "#16a34a")
-                @RenderMacroPill("Fat", _totals.FatG, _profile.FatGoalG, "#f59e0b")
-                @RenderMacroPill("Sugars", _totals.SugarsG, _profile.SugarGoalG, "#ec4899")
-            </div>
-
-            <div style="display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
-                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
-                    @(_showAllNutrients ? "Hide nutrients" : "All nutrients")
-                    <AppIcon Name="@(_showAllNutrients ? AppIcons.ChevronUp : AppIcons.ChevronDown)" Size="14" />
-                </button>
-                <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="CopyYesterdayAsync">
-                    <AppIcon Name="@AppIcons.Copy" Size="14" /> Copy Yesterday
-                </button>
-            </div>
-
-            @if (_showAllNutrients)
-            {
-                <div class="ct-nutrient-list">
-                    @RenderNutrientRow("Saturated Fat", _totals.SaturatedFatG, _profile.SaturatedFatGoalG, "g", "#f97316")
-                    @RenderNutrientRow("Sugars", _totals.SugarsG, _profile.SugarGoalG, "g", "#ec4899")
-                    @RenderNutrientRow("Fibre", _totals.FibreG, _profile.FibreGoalG, "g", "#10b981")
-                    @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
+                <div class="ct-compact-macros">
+                    <span><span class="ct-dot" style="background:#2563eb;"></span>C <strong>@_totals.CarbsG.ToString("0")</strong>/@_profile.CarbsGoalG.ToString("0")g</span>
+                    <span><span class="ct-dot" style="background:#16a34a;"></span>P <strong>@_totals.ProteinG.ToString("0")</strong>/@_profile.ProteinGoalG.ToString("0")g</span>
+                    <span><span class="ct-dot" style="background:#f59e0b;"></span>F <strong>@_totals.FatG.ToString("0")</strong>/@_profile.FatGoalG.ToString("0")g</span>
+                    <span><span class="ct-dot" style="background:#ec4899;"></span>S <strong>@_totals.SugarsG.ToString("0")</strong>/@_profile.SugarGoalG.ToString("0")g</span>
                 </div>
-            }
-        </div>
+
+                @if (_showAllNutrients)
+                {
+                    <div class="ct-nutrient-list">
+                        @RenderNutrientRow("Saturated Fat", _totals.SaturatedFatG, _profile.SaturatedFatGoalG, "g", "#f97316")
+                        @RenderNutrientRow("Sugars", _totals.SugarsG, _profile.SugarGoalG, "g", "#ec4899")
+                        @RenderNutrientRow("Fibre", _totals.FibreG, _profile.FibreGoalG, "g", "#10b981")
+                        @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="ct-card">
+                <div class="ct-summary-grid">
+                    <div class="ct-stat-col">
+                        <div class="ct-stat-val">@_profile.DailyCalorieGoal.ToString("0")</div>
+                        <div class="ct-stat-lbl">Goal</div>
+                    </div>
+
+                    <CalorieRing Consumed="_totals.CaloriesKcal" Goal="_profile.DailyCalorieGoal" />
+
+                    <div class="ct-stat-col">
+                        <div class="ct-stat-val" style="color:var(--ct-green-dark)">@_totals.CaloriesKcal.ToString("0")</div>
+                        <div class="ct-stat-lbl">Eaten</div>
+                    </div>
+                </div>
+
+                <div class="ct-macro-row">
+                    @RenderMacroPill("Carbs", _totals.CarbsG, _profile.CarbsGoalG, "#2563eb")
+                    @RenderMacroPill("Protein", _totals.ProteinG, _profile.ProteinGoalG, "#16a34a")
+                    @RenderMacroPill("Fat", _totals.FatG, _profile.FatGoalG, "#f59e0b")
+                    @RenderMacroPill("Sugars", _totals.SugarsG, _profile.SugarGoalG, "#ec4899")
+                </div>
+
+                <div style="display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                    <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _showAllNutrients = !_showAllNutrients">
+                        @(_showAllNutrients ? "Hide nutrients" : "All nutrients")
+                        <AppIcon Name="@(_showAllNutrients ? AppIcons.ChevronUp : AppIcons.ChevronDown)" Size="14" />
+                    </button>
+                    <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="CopyYesterdayAsync">
+                        <AppIcon Name="@AppIcons.Copy" Size="14" /> Copy Yesterday
+                    </button>
+                </div>
+
+                @if (_showAllNutrients)
+                {
+                    <div class="ct-nutrient-list">
+                        @RenderNutrientRow("Saturated Fat", _totals.SaturatedFatG, _profile.SaturatedFatGoalG, "g", "#f97316")
+                        @RenderNutrientRow("Sugars", _totals.SugarsG, _profile.SugarGoalG, "g", "#ec4899")
+                        @RenderNutrientRow("Fibre", _totals.FibreG, _profile.FibreGoalG, "g", "#10b981")
+                        @RenderNutrientRow("Salt", _totals.SaltG, _profile.SaltGoalG, "g", "#6366f1")
+                    </div>
+                }
+            </div>
+        }
     };
 
     private RenderFragment RenderMacroPill(string name, double value, double goal, string color) => __builder =>

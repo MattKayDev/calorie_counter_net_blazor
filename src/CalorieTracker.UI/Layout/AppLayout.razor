@@ -2,6 +2,7 @@
 @inject IUserProfileRepository ProfileRepo
 @inject IThemeService ThemeService
 @inject IAppUpdateService AppUpdate
+@inject AppLayoutState LayoutState
 @implements IDisposable
 
 <div class="ct-shell">
@@ -26,15 +27,18 @@
         </div>
     }
 
-    <nav class="ct-bottom-nav" aria-label="Main navigation">
+    <nav class="ct-bottom-nav @(LayoutState.ShowFoodsInBottomNav ? "" : "ct-bottom-nav-2")" aria-label="Main navigation">
         <NavLink class="ct-nav-item" href="" Match="NavLinkMatch.All">
             <span class="ct-nav-icon"><AppIcon Name="@AppIcons.Diary" Size="20" /></span>
             <span>Diary</span>
         </NavLink>
-        <NavLink class="ct-nav-item" href="foods">
-            <span class="ct-nav-icon"><AppIcon Name="@AppIcons.Foods" Size="20" /></span>
-            <span>Foods</span>
-        </NavLink>
+        @if (LayoutState.ShowFoodsInBottomNav)
+        {
+            <NavLink class="ct-nav-item" href="foods">
+                <span class="ct-nav-icon"><AppIcon Name="@AppIcons.Foods" Size="20" /></span>
+                <span>Foods</span>
+            </NavLink>
+        }
         <NavLink class="ct-nav-item" href="progress">
             <span class="ct-nav-icon"><AppIcon Name="@AppIcons.Progress" Size="20" /></span>
             <span>Progress</span>
@@ -48,9 +52,11 @@
     protected override async Task OnInitializedAsync()
     {
         AppUpdate.UpdateAvailableChanged += HandleUpdateAvailable;
+        LayoutState.Changed += HandleLayoutStateChanged;
         try
         {
             var profile = await ProfileRepo.GetOrCreateAsync();
+            LayoutState.SetShowFoodsInBottomNav(profile.ShowFoodsInBottomNav);
             await ThemeService.ApplyThemeAsync(profile.ThemeMode, profile.ColorScheme);
         }
         catch
@@ -67,10 +73,16 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void HandleLayoutStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     private Task ApplyUpdateAsync() => AppUpdate.ApplyUpdateAsync();
 
     public void Dispose()
     {
         AppUpdate.UpdateAvailableChanged -= HandleUpdateAvailable;
+        LayoutState.Changed -= HandleLayoutStateChanged;
     }
 }

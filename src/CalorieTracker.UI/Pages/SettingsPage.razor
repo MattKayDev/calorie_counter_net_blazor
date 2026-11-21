@@ -7,6 +7,7 @@
 @inject IFileDownloadService FileDownload
 @inject IThemeService ThemeService
 @inject IAppUpdateService AppUpdate
+@inject AppLayoutState LayoutState
 @inject DiaryService Diary
 @inject NavigationManager Nav
 
@@ -98,6 +99,17 @@
                 <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
             </button>
 
+            <button class="ct-menu-row" @onclick='() => Nav.NavigateTo("foods")'>
+                <div class="ct-menu-left">
+                    <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Barcode" Size="20" /></div>
+                    <div>
+                        <div class="ct-menu-title">Food Library</div>
+                        <div class="ct-menu-sub">Browse foods, barcode scan, custom foods, and saved meals</div>
+                    </div>
+                </div>
+                <span class="ct-menu-chevron"><AppIcon Name="@AppIcons.ChevronRight" Size="18" /></span>
+            </button>
+
             <button class="ct-menu-row" @onclick="() => OpenSectionAsync(SettingsSection.Backups)">
                 <div class="ct-menu-left">
                     <div class="ct-menu-icon"><AppIcon Name="@AppIcons.Database" Size="20" /></div>
@@ -161,7 +173,26 @@
         <div class="ct-card">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                 <div style="flex:1; min-width:160px;">
-                    <h2 class="ct-card-title">Calorie Summary</h2>
+                    <h2 class="ct-card-title">Calorie Summary Style</h2>
+                    <div class="ct-muted">Compact bar or full calorie ring</div>
+                </div>
+                <div class="ct-tabs" style="width:190px; flex-shrink:0;">
+                    <button type="button" class="ct-tab @(!_profile.CompactCalorieSummary ? "active" : "")"
+                            @onclick="() => SetCompactCalorieSummaryAsync(false)">
+                        Standard
+                    </button>
+                    <button type="button" class="ct-tab @(_profile.CompactCalorieSummary ? "active" : "")"
+                            @onclick="() => SetCompactCalorieSummaryAsync(true)">
+                        Compact
+                    </button>
+                </div>
+            </div>
+
+            <div class="ct-setting-divider"></div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:160px;">
+                    <h2 class="ct-card-title">Calorie Summary Position</h2>
                     <div class="ct-muted">Keep fixed at the top or scroll with your meal times</div>
                 </div>
                 <div class="ct-tabs" style="width:190px; flex-shrink:0;">
@@ -172,6 +203,25 @@
                     <button type="button" class="ct-tab @(!_profile.PinCalorieSummary ? "active" : "")"
                             @onclick="() => SetPinCalorieSummaryAsync(false)">
                         Scrollable
+                    </button>
+                </div>
+            </div>
+
+            <div class="ct-setting-divider"></div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:160px;">
+                    <h2 class="ct-card-title">Foods in Bottom Menu</h2>
+                    <div class="ct-muted">Always accessible from the Settings menu</div>
+                </div>
+                <div class="ct-tabs" style="width:190px; flex-shrink:0;">
+                    <button type="button" class="ct-tab @(_profile.ShowFoodsInBottomNav ? "active" : "")"
+                            @onclick="() => SetShowFoodsInBottomNavAsync(true)">
+                        Show
+                    </button>
+                    <button type="button" class="ct-tab @(!_profile.ShowFoodsInBottomNav ? "active" : "")"
+                            @onclick="() => SetShowFoodsInBottomNavAsync(false)">
+                        Hide
                     </button>
                 </div>
             </div>
@@ -690,6 +740,7 @@
     private async Task ReloadAsync()
     {
         _profile = await ProfileRepo.GetOrCreateAsync();
+        LayoutState.SetShowFoodsInBottomNav(_profile.ShowFoodsInBottomNav);
         var allSlots = await SlotRepo.GetAllAsync(includeArchived: true);
         _slots = allSlots.Where(s => !s.IsArchived).ToList();
         _waterEnabled = allSlots.Any(s => s.IsWaterTracker && !s.IsArchived);
@@ -870,6 +921,19 @@
     {
         _profile.PinCalorieSummary = pin;
         await ProfileRepo.SaveAsync(_profile);
+    }
+
+    private async Task SetCompactCalorieSummaryAsync(bool compact)
+    {
+        _profile.CompactCalorieSummary = compact;
+        await ProfileRepo.SaveAsync(_profile);
+    }
+
+    private async Task SetShowFoodsInBottomNavAsync(bool show)
+    {
+        _profile.ShowFoodsInBottomNav = show;
+        await ProfileRepo.SaveAsync(_profile);
+        LayoutState.SetShowFoodsInBottomNav(show);
     }
 
     private async Task SaveInitialCurrentWeightAsync(double weightKg)

@@ -46,6 +46,8 @@ public sealed class PersonalSqliteSchemaInitializer
                 ColorScheme INTEGER NOT NULL DEFAULT 0,
                 UnitSystem INTEGER NOT NULL DEFAULT 0,
                 PinCalorieSummary INTEGER NOT NULL DEFAULT 1,
+                CompactCalorieSummary INTEGER NOT NULL DEFAULT 0,
+                ShowFoodsInBottomNav INTEGER NOT NULL DEFAULT 1,
                 UpdatedAtUtc TEXT NOT NULL
             );
             """, null, ct);
@@ -159,6 +161,8 @@ public sealed class PersonalSqliteSchemaInitializer
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "PinCalorieSummary", "INTEGER NOT NULL DEFAULT 1", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "CompactCalorieSummary", "INTEGER NOT NULL DEFAULT 0", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ShowFoodsInBottomNav", "INTEGER NOT NULL DEFAULT 1", ct);
         await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "FoodLogEntries", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
         // Seed default meal slots if none exist
