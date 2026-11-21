@@ -70,6 +70,17 @@
         'indigo': '#4f46e5'
     };
 
+    const ACCENT_META_COLORS_DARK = {
+        'royal-blue': '#1d4ed8',
+        'green': '#14532d',
+        'purple': '#5b21b6',
+        'orange': '#c2410c',
+        'red': '#991b1b',
+        'teal': '#115e59',
+        'rose': '#9d174d',
+        'indigo': '#3730a3'
+    };
+
     window.themeBridge = {
         apply: function (mode, accent) {
             const theme = mode === 'dark' ? 'dark' : 'light';
@@ -81,7 +92,7 @@
                 localStorage.setItem('ct-accent', scheme);
             } catch { }
             const meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : ACCENT_META_COLORS[scheme]);
+            if (meta) meta.setAttribute('content', theme === 'dark' ? ACCENT_META_COLORS_DARK[scheme] : ACCENT_META_COLORS[scheme]);
         }
     };
 

@@ -19,7 +19,7 @@
     --ct-radius-sm: 10px;
     --ct-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
     --ct-track: #e2e8f0;
-    --ct-topbar-bg: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    --ct-topbar-bg: #2563eb;
     --ct-focus-ring: rgba(37, 99, 235, 0.18);
 }
 
@@ -36,7 +36,7 @@
     --ct-red-light: rgba(239, 68, 68, 0.18);
     --ct-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
     --ct-track: #334155;
-    --ct-topbar-bg: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+    --ct-topbar-bg: #1d4ed8;
     --ct-focus-ring: rgba(59, 130, 246, 0.25);
 }
 
@@ -45,49 +45,49 @@
     --ct-green: #16a34a;
     --ct-green-light: #dcfce7;
     --ct-green-dark: #15803d;
-    --ct-topbar-bg: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+    --ct-topbar-bg: #16a34a;
     --ct-focus-ring: rgba(22, 163, 74, 0.18);
 }
 [data-accent="purple"] {
     --ct-green: #7c3aed;
     --ct-green-light: #ede9fe;
     --ct-green-dark: #6d28d9;
-    --ct-topbar-bg: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    --ct-topbar-bg: #7c3aed;
     --ct-focus-ring: rgba(124, 58, 237, 0.18);
 }
 [data-accent="orange"] {
     --ct-green: #ea580c;
     --ct-green-light: #ffedd5;
     --ct-green-dark: #c2410c;
-    --ct-topbar-bg: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
+    --ct-topbar-bg: #ea580c;
     --ct-focus-ring: rgba(234, 88, 12, 0.18);
 }
 [data-accent="red"] {
     --ct-green: #dc2626;
     --ct-green-light: #fee2e2;
     --ct-green-dark: #b91c1c;
-    --ct-topbar-bg: linear-gradient(135deg, #dc2626 0%, #9f1239 100%);
+    --ct-topbar-bg: #dc2626;
     --ct-focus-ring: rgba(220, 38, 38, 0.18);
 }
 [data-accent="teal"] {
     --ct-green: #0d9488;
     --ct-green-light: #ccfbf1;
     --ct-green-dark: #0f766e;
-    --ct-topbar-bg: linear-gradient(135deg, #0d9488 0%, #0e7490 100%);
+    --ct-topbar-bg: #0d9488;
     --ct-focus-ring: rgba(13, 148, 136, 0.18);
 }
 [data-accent="rose"] {
     --ct-green: #db2777;
     --ct-green-light: #fce7f3;
     --ct-green-dark: #be185d;
-    --ct-topbar-bg: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+    --ct-topbar-bg: #db2777;
     --ct-focus-ring: rgba(219, 39, 119, 0.18);
 }
 [data-accent="indigo"] {
     --ct-green: #4f46e5;
     --ct-green-light: #e0e7ff;
     --ct-green-dark: #4338ca;
-    --ct-topbar-bg: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+    --ct-topbar-bg: #4f46e5;
     --ct-focus-ring: rgba(79, 70, 229, 0.18);
 }
 
@@ -96,43 +96,43 @@
     --ct-green: #22c55e;
     --ct-green-light: rgba(34, 197, 94, 0.18);
     --ct-green-dark: #4ade80;
-    --ct-topbar-bg: linear-gradient(135deg, #14532d 0%, #115e59 100%);
+    --ct-topbar-bg: #14532d;
 }
 [data-theme="dark"][data-accent="purple"] {
     --ct-green: #a78bfa;
     --ct-green-light: rgba(167, 139, 250, 0.18);
     --ct-green-dark: #c4b5fd;
-    --ct-topbar-bg: linear-gradient(135deg, #5b21b6 0%, #3b0764 100%);
+    --ct-topbar-bg: #5b21b6;
 }
 [data-theme="dark"][data-accent="orange"] {
     --ct-green: #fb923c;
     --ct-green-light: rgba(251, 146, 60, 0.18);
     --ct-green-dark: #fdba74;
-    --ct-topbar-bg: linear-gradient(135deg, #c2410c 0%, #7c2d12 100%);
+    --ct-topbar-bg: #c2410c;
 }
 [data-theme="dark"][data-accent="red"] {
     --ct-green: #f87171;
     --ct-green-light: rgba(248, 113, 113, 0.18);
     --ct-green-dark: #fca5a5;
-    --ct-topbar-bg: linear-gradient(135deg, #991b1b 0%, #881337 100%);
+    --ct-topbar-bg: #991b1b;
 }
 [data-theme="dark"][data-accent="teal"] {
     --ct-green: #2dd4bf;
     --ct-green-light: rgba(45, 212, 191, 0.18);
     --ct-green-dark: #5eead4;
-    --ct-topbar-bg: linear-gradient(135deg, #115e59 0%, #155e75 100%);
+    --ct-topbar-bg: #115e59;
 }
 [data-theme="dark"][data-accent="rose"] {
     --ct-green: #f472b6;
     --ct-green-light: rgba(244, 114, 182, 0.18);
     --ct-green-dark: #f9a8d4;
-    --ct-topbar-bg: linear-gradient(135deg, #9d174d 0%, #831843 100%);
+    --ct-topbar-bg: #9d174d;
 }
 [data-theme="dark"][data-accent="indigo"] {
     --ct-green: #818cf8;
     --ct-green-light: rgba(129, 140, 248, 0.18);
     --ct-green-dark: #a5b4fc;
-    --ct-topbar-bg: linear-gradient(135deg, #3730a3 0%, #312e81 100%);
+    --ct-topbar-bg: #3730a3;
 }
 
 /* Color Swatch Picker */
@@ -223,17 +223,14 @@ html, body {
 }
 
 .ct-topbar {
-    position: relative;
+    position: sticky;
+    top: 0;
     flex-shrink: 0;
     z-index: 20;
-    background: var(--ct-topbar-bg);
+    background-color: var(--ct-topbar-bg);
     color: #fff;
     padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-}
-
-[data-theme="dark"] .ct-topbar {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    box-shadow: none;
 }
 
 .ct-topbar-row {
