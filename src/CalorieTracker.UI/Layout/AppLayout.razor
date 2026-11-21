@@ -5,7 +5,9 @@
 @implements IDisposable
 
 <div class="ct-shell">
-    @Body
+    <main class="ct-shell-body">
+        @Body
+    </main>
 
     @if (AppUpdate.IsUpdateAvailable && !_updateDismissed)
     {

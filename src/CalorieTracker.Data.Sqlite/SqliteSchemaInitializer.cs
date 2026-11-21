@@ -5,6 +5,7 @@ namespace CalorieTracker.Data.Sqlite;
 public sealed class PersonalSqliteSchemaInitializer
 {
     private readonly IPersonalSqliteEngine _engine;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
     public PersonalSqliteSchemaInitializer(IPersonalSqliteEngine engine)
@@ -16,9 +17,14 @@ public sealed class PersonalSqliteSchemaInitializer
     {
         if (_initialized) return;
 
-        await _engine.InitializeAsync(ct);
+        await _initLock.WaitAsync(ct);
+        try
+        {
+            if (_initialized) return;
 
-        await _engine.ExecuteAsync("""
+            await _engine.InitializeAsync(ct);
+
+            await _engine.ExecuteAsync("""
             CREATE TABLE IF NOT EXISTS UserProfiles (
                 Id TEXT PRIMARY KEY,
                 DailyCalorieGoal REAL NOT NULL DEFAULT 2000,
@@ -144,16 +150,16 @@ public sealed class PersonalSqliteSchemaInitializer
             );
             """, null, ct);
 
-        // Safe additive migrations for existing UserProfiles tables
-        await EnsureColumnAsync("UserProfiles", "AgeYears", "INTEGER NULL DEFAULT 30", ct);
-        await EnsureColumnAsync("UserProfiles", "ActivityLevel", "INTEGER NOT NULL DEFAULT 2", ct);
-        await EnsureColumnAsync("UserProfiles", "GoalWeightKg", "REAL NULL", ct);
-        await EnsureColumnAsync("UserProfiles", "WeeklyWeightChangeKg", "REAL NOT NULL DEFAULT -0.5", ct);
-        await EnsureColumnAsync("UserProfiles", "DailyWaterGoalMl", "INTEGER NOT NULL DEFAULT 2000", ct);
-        await EnsureColumnAsync("UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
-        await EnsureColumnAsync("UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
-        await EnsureColumnAsync("UserProfiles", "PinCalorieSummary", "INTEGER NOT NULL DEFAULT 1", ct);
-        await EnsureColumnAsync("FoodLogEntries", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
+        // Safe additive migrations for existing tables
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "AgeYears", "INTEGER NULL DEFAULT 30", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ActivityLevel", "INTEGER NOT NULL DEFAULT 2", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "GoalWeightKg", "REAL NULL", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "WeeklyWeightChangeKg", "REAL NOT NULL DEFAULT -0.5", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "DailyWaterGoalMl", "INTEGER NOT NULL DEFAULT 2000", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "UserProfiles", "PinCalorieSummary", "INTEGER NOT NULL DEFAULT 1", ct);
+        await SqliteSchemaHelpers.EnsureColumnAsync(_engine, "FoodLogEntries", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
         // Seed default meal slots if none exist
         var existingSlots = await _engine.QueryAsync("SELECT COUNT(*) AS Cnt FROM MealSlots;", null, ct);
@@ -170,7 +176,7 @@ public sealed class PersonalSqliteSchemaInitializer
             foreach (var (id, name, icon, order) in defaults)
             {
                 await _engine.ExecuteAsync(
-                    "INSERT INTO MealSlots (Id, Name, Icon, SortOrder, IsArchived, UpdatedAtUtc) VALUES (?, ?, ?, ?, 0, ?);",
+                    "INSERT OR IGNORE INTO MealSlots (Id, Name, Icon, SortOrder, IsArchived, UpdatedAtUtc) VALUES (?, ?, ?, ?, 0, ?);",
                     new object?[] { id.ToString(), name, icon, order, now },
                     ct);
             }
@@ -184,21 +190,16 @@ public sealed class PersonalSqliteSchemaInitializer
         if (waterCheck.Count == 0 || RowReader.GetInt(waterCheck[0], "Cnt") == 0)
         {
             await _engine.ExecuteAsync(
-                "INSERT INTO MealSlots (Id, Name, Icon, SortOrder, IsArchived, UpdatedAtUtc) VALUES (?, ?, ?, ?, 0, ?);",
+                "INSERT OR IGNORE INTO MealSlots (Id, Name, Icon, SortOrder, IsArchived, UpdatedAtUtc) VALUES (?, ?, ?, ?, 0, ?);",
                 new object?[] { MealSlot.WaterSlotId.ToString(), "Water", "water", -1, DateTime.UtcNow.ToString("O") },
                 ct);
         }
 
-        _initialized = true;
-    }
-
-    private async Task EnsureColumnAsync(string table, string column, string definition, CancellationToken ct)
-    {
-        var cols = await _engine.QueryAsync($"PRAGMA table_info({table});", null, ct);
-        var exists = cols.Any(c => string.Equals(RowReader.GetString(c, "name"), column, StringComparison.OrdinalIgnoreCase));
-        if (!exists)
+            _initialized = true;
+        }
+        finally
         {
-            await _engine.ExecuteAsync($"ALTER TABLE {table} ADD COLUMN {column} {definition};", null, ct);
+            _initLock.Release();
         }
     }
 
@@ -209,6 +210,7 @@ public sealed class FoodsSqliteSchemaInitializer
 {
     private readonly IFoodsSqliteEngine _foodsEngine;
     private readonly IPersonalSqliteEngine _personalEngine;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
     public FoodsSqliteSchemaInitializer(IFoodsSqliteEngine foodsEngine, IPersonalSqliteEngine personalEngine)
@@ -221,42 +223,52 @@ public sealed class FoodsSqliteSchemaInitializer
     {
         if (_initialized) return;
 
-        await _foodsEngine.InitializeAsync(ct);
+        await _initLock.WaitAsync(ct);
+        try
+        {
+            if (_initialized) return;
 
-        await _foodsEngine.ExecuteAsync("""
-            CREATE TABLE IF NOT EXISTS FoodItems (
-                Id TEXT PRIMARY KEY,
-                Name TEXT NOT NULL,
-                Brand TEXT NULL,
-                Barcode TEXT NULL,
-                ExternalId TEXT NULL,
-                Source INTEGER NOT NULL DEFAULT 0,
-                ServingSizeG REAL NOT NULL DEFAULT 100,
-                ServingDescription TEXT NOT NULL DEFAULT '100g',
-                MeasurementUnit TEXT NOT NULL DEFAULT 'g',
-                CaloriesPer100G REAL NOT NULL DEFAULT 0,
-                FatPer100G REAL NOT NULL DEFAULT 0,
-                SaturatedFatPer100G REAL NOT NULL DEFAULT 0,
-                CarbsPer100G REAL NOT NULL DEFAULT 0,
-                SugarsPer100G REAL NOT NULL DEFAULT 0,
-                FibrePer100G REAL NOT NULL DEFAULT 0,
-                ProteinPer100G REAL NOT NULL DEFAULT 0,
-                SaltPer100G REAL NOT NULL DEFAULT 0,
-                IsDeleted INTEGER NOT NULL DEFAULT 0,
-                UpdatedAtUtc TEXT NOT NULL
-            );
-            """, null, ct);
+            await _foodsEngine.InitializeAsync(ct);
 
-        await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_Barcode ON FoodItems(Barcode);", null, ct);
-        await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_Name ON FoodItems(Name);", null, ct);
-        await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_ExternalId ON FoodItems(ExternalId);", null, ct);
-        await EnsureColumnAsync("FoodItems", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
+            await _foodsEngine.ExecuteAsync("""
+                CREATE TABLE IF NOT EXISTS FoodItems (
+                    Id TEXT PRIMARY KEY,
+                    Name TEXT NOT NULL,
+                    Brand TEXT NULL,
+                    Barcode TEXT NULL,
+                    ExternalId TEXT NULL,
+                    Source INTEGER NOT NULL DEFAULT 0,
+                    ServingSizeG REAL NOT NULL DEFAULT 100,
+                    ServingDescription TEXT NOT NULL DEFAULT '100g',
+                    MeasurementUnit TEXT NOT NULL DEFAULT 'g',
+                    CaloriesPer100G REAL NOT NULL DEFAULT 0,
+                    FatPer100G REAL NOT NULL DEFAULT 0,
+                    SaturatedFatPer100G REAL NOT NULL DEFAULT 0,
+                    CarbsPer100G REAL NOT NULL DEFAULT 0,
+                    SugarsPer100G REAL NOT NULL DEFAULT 0,
+                    FibrePer100G REAL NOT NULL DEFAULT 0,
+                    ProteinPer100G REAL NOT NULL DEFAULT 0,
+                    SaltPer100G REAL NOT NULL DEFAULT 0,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    UpdatedAtUtc TEXT NOT NULL
+                );
+                """, null, ct);
 
-        // One-time migration: if a legacy single-DB personal.sqlite still has a FoodItems table,
-        // copy those food items cleanly into foods.sqlite and drop the legacy table from personal.sqlite.
-        await MigrateLegacyFoodItemsFromPersonalDbAsync(ct);
+            await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_Barcode ON FoodItems(Barcode);", null, ct);
+            await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_Name ON FoodItems(Name);", null, ct);
+            await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_ExternalId ON FoodItems(ExternalId);", null, ct);
+            await SqliteSchemaHelpers.EnsureColumnAsync(_foodsEngine, "FoodItems", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
-        _initialized = true;
+            // One-time migration: if a legacy single-DB personal.sqlite still has a FoodItems table,
+            // copy those food items cleanly into foods.sqlite and drop the legacy table from personal.sqlite.
+            await MigrateLegacyFoodItemsFromPersonalDbAsync(ct);
+
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task MigrateLegacyFoodItemsFromPersonalDbAsync(CancellationToken ct)
@@ -310,15 +322,24 @@ public sealed class FoodsSqliteSchemaInitializer
         }
     }
 
-    private async Task EnsureColumnAsync(string table, string column, string definition, CancellationToken ct)
+    public void ResetInitializationState() => _initialized = false;
+}
+
+internal static class SqliteSchemaHelpers
+{
+    public static async Task EnsureColumnAsync(ISqliteEngine engine, string table, string column, string definition, CancellationToken ct)
     {
-        var cols = await _foodsEngine.QueryAsync($"PRAGMA table_info({table});", null, ct);
+        var cols = await engine.QueryAsync($"PRAGMA table_info({table});", null, ct);
         var exists = cols.Any(c => string.Equals(RowReader.GetString(c, "name"), column, StringComparison.OrdinalIgnoreCase));
-        if (!exists)
+        if (exists) return;
+
+        try
         {
-            await _foodsEngine.ExecuteAsync($"ALTER TABLE {table} ADD COLUMN {column} {definition};", null, ct);
+            await engine.ExecuteAsync($"ALTER TABLE {table} ADD COLUMN {column} {definition};", null, ct);
+        }
+        catch (Exception ex) when (ex.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase))
+        {
+            // Safe ignore if column already existed or was added concurrently
         }
     }
-
-    public void ResetInitializationState() => _initialized = false;
 }

@@ -186,6 +186,10 @@
             if (dbs[name]) dbs[name].close();
             dbs[name] = nextDb;
             await flushSave(name);
+        },
+
+        flushAll: async function () {
+            await Promise.all(Array.from(dirtyDbs).map(name => flushSave(name).catch(() => { })));
         }
     };
 })();

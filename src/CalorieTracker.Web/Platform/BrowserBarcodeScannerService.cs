@@ -162,7 +162,14 @@ public sealed class BrowserAppUpdateService : IAppUpdateService, IDisposable
 
     public async Task ApplyUpdateAsync()
     {
-        await _js.InvokeVoidAsync("pwaUpdateBridge.applyUpdate");
+        try
+        {
+            await _js.InvokeVoidAsync("pwaUpdateBridge.applyUpdate");
+        }
+        catch
+        {
+            // ignore teardown interop errors during page reload
+        }
     }
 
     public void Dispose() => _dotNetRef?.Dispose();

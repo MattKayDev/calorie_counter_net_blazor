@@ -541,4 +541,99 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal("ml", parsed[0].MeasurementUnit);
         Assert.Equal("g", parsed[1].MeasurementUnit);
     }
+
+    [Fact]
+    public async Task SchemaInitializers_HandleConcurrentUpgradeMigrationsWithoutDuplicateColumnErrors()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+
+        // Simulate legacy schemas before PinCalorieSummary, ColorScheme, MeasurementUnit columns existed
+        await personalEngine.ExecuteAsync("""
+            CREATE TABLE UserProfiles (
+                Id TEXT PRIMARY KEY,
+                DailyCalorieGoal REAL NOT NULL DEFAULT 2000,
+                ProteinGoalG REAL NOT NULL DEFAULT 120,
+                CarbsGoalG REAL NOT NULL DEFAULT 225,
+                FatGoalG REAL NOT NULL DEFAULT 65,
+                SaturatedFatGoalG REAL NOT NULL DEFAULT 20,
+                SugarGoalG REAL NOT NULL DEFAULT 45,
+                SaltGoalG REAL NOT NULL DEFAULT 6,
+                FibreGoalG REAL NOT NULL DEFAULT 30,
+                HeightCm REAL NULL,
+                BiologicalSex INTEGER NOT NULL DEFAULT 0,
+                UnitSystem INTEGER NOT NULL DEFAULT 0,
+                UpdatedAtUtc TEXT NOT NULL
+            );
+            """);
+
+        await personalEngine.ExecuteAsync("""
+            CREATE TABLE FoodLogEntries (
+                Id TEXT PRIMARY KEY,
+                Date TEXT NOT NULL,
+                MealSlotId TEXT NOT NULL,
+                FoodItemId TEXT NULL,
+                MealId TEXT NULL,
+                NameSnapshot TEXT NOT NULL,
+                BrandSnapshot TEXT NULL,
+                QuantityGrams REAL NOT NULL,
+                Servings REAL NOT NULL DEFAULT 1,
+                ServingLabel TEXT NOT NULL DEFAULT '100g',
+                CaloriesKcal REAL NOT NULL,
+                FatG REAL NOT NULL,
+                SaturatedFatG REAL NOT NULL,
+                CarbsG REAL NOT NULL,
+                SugarsG REAL NOT NULL,
+                FibreG REAL NOT NULL,
+                ProteinG REAL NOT NULL,
+                SaltG REAL NOT NULL,
+                IsDeleted INTEGER NOT NULL DEFAULT 0,
+                LoggedAtUtc TEXT NOT NULL,
+                UpdatedAtUtc TEXT NOT NULL
+            );
+            """);
+
+        await foodsEngine.ExecuteAsync("""
+            CREATE TABLE FoodItems (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Brand TEXT NULL,
+                Barcode TEXT NULL,
+                ExternalId TEXT NULL,
+                Source INTEGER NOT NULL DEFAULT 0,
+                ServingSizeG REAL NOT NULL DEFAULT 100,
+                ServingDescription TEXT NOT NULL DEFAULT '100g',
+                CaloriesPer100G REAL NOT NULL DEFAULT 0,
+                FatPer100G REAL NOT NULL DEFAULT 0,
+                SaturatedFatPer100G REAL NOT NULL DEFAULT 0,
+                CarbsPer100G REAL NOT NULL DEFAULT 0,
+                SugarsPer100G REAL NOT NULL DEFAULT 0,
+                FibrePer100G REAL NOT NULL DEFAULT 0,
+                ProteinPer100G REAL NOT NULL DEFAULT 0,
+                SaltPer100G REAL NOT NULL DEFAULT 0,
+                IsDeleted INTEGER NOT NULL DEFAULT 0,
+                UpdatedAtUtc TEXT NOT NULL
+            );
+            """);
+
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+
+        // Concurrent EnsureCreatedAsync calls (as occurs between AppLayout & DiaryPage after an app update)
+        var tasks = new List<Task>();
+        for (var i = 0; i < 6; i++)
+        {
+            tasks.Add(personalInit.EnsureCreatedAsync());
+            tasks.Add(foodsInit.EnsureCreatedAsync());
+        }
+        await Task.WhenAll(tasks);
+
+        var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
+        var profile = await profileRepo.GetOrCreateAsync();
+        Assert.True(profile.PinCalorieSummary);
+
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+        var item = await foodRepo.UpsertAsync(new FoodItem { Name = "Milk", MeasurementUnit = "ml" });
+        Assert.Equal("ml", (await foodRepo.GetByIdAsync(item.Id))!.MeasurementUnit);
+    }
 }

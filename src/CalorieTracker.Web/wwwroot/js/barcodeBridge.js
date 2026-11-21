@@ -100,7 +100,9 @@
                 if (!reg) return;
 
                 const notify = () => {
-                    try { dotNetRef.invokeMethodAsync('OnUpdateReady'); } catch { }
+                    try {
+                        Promise.resolve(dotNetRef.invokeMethodAsync('OnUpdateReady')).catch(() => { });
+                    } catch { }
                 };
 
                 if (reg.waiting) {
@@ -178,6 +180,12 @@
         },
 
         applyUpdate: async function () {
+            if (window.sqliteBridge && window.sqliteBridge.flushAll) {
+                try {
+                    await window.sqliteBridge.flushAll();
+                } catch { }
+            }
+
             if (!('serviceWorker' in navigator)) {
                 window.location.reload();
                 return;
@@ -198,7 +206,7 @@
                         reloaded = true;
                         window.location.reload();
                     }
-                }, 1000);
+                }, 2500);
             } else {
                 window.location.reload();
             }
