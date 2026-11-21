@@ -377,4 +377,66 @@ public class SqliteRepositoryAndLookupTests
         var expandedFoodsBytes = await backupService.GetFoodsDatabaseSizeBytesAsync();
         Assert.True(expandedFoodsBytes >= initialFoodsBytes);
     }
+
+    [Fact]
+    public async Task DuplicateEntry_CreatesIndependentEntryOnSameOrDifferentMealAndDate()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+
+        var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
+        var slotRepo = new SqliteMealSlotRepository(personalEngine, personalInit);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+        var logRepo = new SqliteFoodLogRepository(personalEngine, personalInit);
+        var bodyRepo = new SqliteBodyMeasurementRepository(personalEngine, personalInit);
+        var diary = new DiaryService(logRepo, bodyRepo, profileRepo);
+
+        var foodSlots = (await slotRepo.GetAllAsync()).Where(s => !s.IsWaterTracker).ToList();
+        var chicken = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Chicken Breast",
+            CaloriesPer100G = 165,
+            ProteinPer100G = 31,
+            FatPer100G = 3.6
+        });
+
+        var day1 = new DateOnly(2026, 11, 20);
+        var day2 = day1.AddDays(1);
+        var original = await diary.LogFoodItemAsync(day1, foodSlots[0].Id, chicken, grams: 200, servingLabel: "1 large fillet");
+
+        // Duplicate to same day & same slot with unchanged quantity (preserves label, creates distinct Id)
+        var sameSlotDup = await diary.DuplicateEntryAsync(original, day1, foodSlots[0].Id, 200);
+        Assert.NotEqual(original.Id, sameSlotDup.Id);
+        Assert.Equal("1 large fillet", sameSlotDup.ServingLabel);
+        Assert.Equal(330, sameSlotDup.CaloriesKcal);
+
+        var day1Entries = await logRepo.GetByDateAsync(day1);
+        Assert.Equal(2, day1Entries.Count);
+
+        // Duplicate to a different date, meal slot, and adjusted quantity (200g -> 150g)
+        var otherDayDup = await diary.DuplicateEntryAsync(original, day2, foodSlots[2].Id, 150);
+        Assert.NotEqual(original.Id, otherDayDup.Id);
+        Assert.Equal(day2, otherDayDup.Date);
+        Assert.Equal(foodSlots[2].Id, otherDayDup.MealSlotId);
+        Assert.Equal(150, otherDayDup.QuantityGrams);
+        Assert.Equal("150g", otherDayDup.ServingLabel);
+        Assert.Equal(247.5, otherDayDup.CaloriesKcal);
+        Assert.Equal(46.5, otherDayDup.ProteinG);
+
+        // Original remains untouched
+        var reloadedOriginal = (await logRepo.GetByDateAsync(day1)).Single(e => e.Id == original.Id);
+        Assert.Equal(200, reloadedOriginal.QuantityGrams);
+        Assert.Equal("1 large fillet", reloadedOriginal.ServingLabel);
+
+        // Edit in place can move an entry to another day while preserving its ServingLabel when grams unchanged
+        await diary.UpdateEntryQuantityAsync(sameSlotDup, newGrams: 200, foodSlots[1].Id, newDate: day2);
+        Assert.Single(await logRepo.GetByDateAsync(day1));
+        var day2Entries = await logRepo.GetByDateAsync(day2);
+        Assert.Equal(2, day2Entries.Count);
+        var moved = day2Entries.Single(e => e.Id == sameSlotDup.Id);
+        Assert.Equal(foodSlots[1].Id, moved.MealSlotId);
+        Assert.Equal("1 large fillet", moved.ServingLabel);
+    }
 }

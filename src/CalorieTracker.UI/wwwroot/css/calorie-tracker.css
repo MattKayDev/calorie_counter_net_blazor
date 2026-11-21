@@ -705,6 +705,10 @@ html, body {
     font-size: 0.86rem;
     color: var(--ct-text-muted);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .ct-tab.active {

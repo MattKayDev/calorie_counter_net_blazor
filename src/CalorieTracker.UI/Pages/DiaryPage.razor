@@ -153,7 +153,7 @@ else
                                     </div>
                                     <div class="ct-entry-right">
                                         <span class="ct-entry-kcal">@entry.CaloriesKcal.ToString("0") kcal</span>
-                                        <button class="ct-icon-btn" title="Edit quantity" @onclick="() => OpenEditEntryModal(entry)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
+                                        <button class="ct-icon-btn" title="Edit or duplicate" @onclick="() => OpenEditEntryModal(entry)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
                                         <button class="ct-icon-btn" title="Remove entry" @onclick="() => DeleteEntryAsync(entry.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
                                     </div>
                                 </div>
@@ -167,25 +167,46 @@ else
 }
 </div>
 
-<!-- Edit Logged Entry Modal -->
+<!-- Edit / Duplicate Logged Entry Modal -->
 @if (_editingEntry is not null)
 {
+    var todayDate = DateOnly.FromDateTime(DateTime.Today);
+    var yesterdayDate = todayDate.AddDays(-1);
+    var tomorrowDate = todayDate.AddDays(1);
+
     <div class="ct-modal-backdrop" @onclick="() => _editingEntry = null">
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
-                <strong>Edit Logged Item</strong>
+                <strong>@(_isDuplicateMode ? "Duplicate Item" : "Edit Logged Item")</strong>
                 <button class="ct-icon-btn" @onclick="() => _editingEntry = null"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
-                <div style="font-weight:700; font-size:1rem; margin-bottom:10px;">@_editingEntry.NameSnapshot</div>
+                <div style="margin-bottom:10px;">
+                    <div style="font-weight:700; font-size:1rem;">@_editingEntry.NameSnapshot</div>
+                    @if (!string.IsNullOrWhiteSpace(_editingEntry.BrandSnapshot))
+                    {
+                        <div class="ct-muted" style="font-size:0.78rem;">@_editingEntry.BrandSnapshot</div>
+                    }
+                </div>
+
+                <div class="ct-tabs" style="margin-bottom:12px;">
+                    <button type="button" class="ct-tab @(!_isDuplicateMode ? "active" : "")"
+                            @onclick="() => _isDuplicateMode = false">
+                        <AppIcon Name="@AppIcons.Edit" Size="14" /> Edit
+                    </button>
+                    <button type="button" class="ct-tab @(_isDuplicateMode ? "active" : "")"
+                            @onclick="() => _isDuplicateMode = true">
+                        <AppIcon Name="@AppIcons.Copy" Size="14" /> Duplicate
+                    </button>
+                </div>
 
                 <div class="ct-grid-2">
                     <div class="ct-field">
                         <label class="ct-label">Quantity (grams)</label>
-                        <input class="ct-input" type="number" step="1" min="1" @bind="_editGrams" @bind:event="oninput" />
+                        <input class="ct-input" type="number" inputmode="decimal" step="1" min="1" @bind="_editGrams" @bind:event="oninput" />
                     </div>
                     <div class="ct-field">
-                        <label class="ct-label">Meal Slot</label>
+                        <label class="ct-label">Meal Time</label>
                         <select class="ct-select" @bind="_editSlotId">
                             @foreach (var s in FoodSlots)
                             {
@@ -193,6 +214,28 @@ else
                             }
                         </select>
                     </div>
+                </div>
+
+                <div class="ct-field">
+                    <label class="ct-label">Date</label>
+                    <div style="display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
+                        <button type="button"
+                                class="ct-btn ct-btn-sm @(_editDate == yesterdayDate ? "ct-btn-soft" : "ct-btn-outline")"
+                                @onclick="() => _editDate = yesterdayDate">
+                            Yesterday
+                        </button>
+                        <button type="button"
+                                class="ct-btn ct-btn-sm @(_editDate == todayDate ? "ct-btn-soft" : "ct-btn-outline")"
+                                @onclick="() => _editDate = todayDate">
+                            Today
+                        </button>
+                        <button type="button"
+                                class="ct-btn ct-btn-sm @(_editDate == tomorrowDate ? "ct-btn-soft" : "ct-btn-outline")"
+                                @onclick="() => _editDate = tomorrowDate">
+                            Tomorrow
+                        </button>
+                    </div>
+                    <input class="ct-input" type="date" @bind="_editDate" />
                 </div>
 
                 @{
@@ -218,8 +261,15 @@ else
                     </div>
                 </div>
 
-                <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveEditedEntryAsync">
-                    Save Changes
+                <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveEntryModalAsync">
+                    @if (_isDuplicateMode)
+                    {
+                        <AppIcon Name="@AppIcons.Copy" Size="16" /> <span>Duplicate Item</span>
+                    }
+                    else
+                    {
+                        <span>Save Changes</span>
+                    }
                 </button>
             </div>
         </div>
@@ -266,6 +316,8 @@ else
     private FoodLogEntry? _editingEntry;
     private double _editGrams;
     private Guid _editSlotId;
+    private DateOnly _editDate;
+    private bool _isDuplicateMode;
 
     protected override async Task OnInitializedAsync()
     {
@@ -299,19 +351,41 @@ else
         await LoadDayAsync();
     }
 
-    private void OpenEditEntryModal(FoodLogEntry entry)
+    private void OpenEditEntryModal(FoodLogEntry entry, bool duplicate = false)
     {
         _editingEntry = entry;
+        _isDuplicateMode = duplicate;
         _editGrams = entry.QuantityGrams > 0 ? entry.QuantityGrams : 100;
-        _editSlotId = entry.MealSlotId;
+        _editDate = entry.Date;
+        _editSlotId = FoodSlots.Any(s => s.Id == entry.MealSlotId)
+            ? entry.MealSlotId
+            : (FoodSlots.FirstOrDefault()?.Id ?? entry.MealSlotId);
     }
 
-    private async Task SaveEditedEntryAsync()
+    private async Task SaveEntryModalAsync()
     {
         if (_editingEntry is null || _editGrams <= 0) return;
-        await Diary.UpdateEntryQuantityAsync(_editingEntry, _editGrams, _editSlotId);
+
+        var slotName = FoodSlots.FirstOrDefault(s => s.Id == _editSlotId)?.Name ?? "Diary";
+        var itemName = _editingEntry.NameSnapshot;
+        var targetDate = _editDate;
+
+        if (_isDuplicateMode)
+        {
+            await Diary.DuplicateEntryAsync(_editingEntry, targetDate, _editSlotId, _editGrams);
+            _toast = targetDate == _selectedDate
+                ? $"Duplicated \"{itemName}\" into {slotName}."
+                : $"Duplicated \"{itemName}\" into {slotName} on {targetDate:dd MMM}.";
+        }
+        else
+        {
+            await Diary.UpdateEntryQuantityAsync(_editingEntry, _editGrams, _editSlotId, targetDate);
+            _toast = targetDate != _selectedDate
+                ? $"Moved \"{itemName}\" to {slotName} on {targetDate:dd MMM}."
+                : "Updated logged item.";
+        }
+
         _editingEntry = null;
-        _toast = "Updated logged item.";
         await LoadDayAsync();
     }
 

@@ -157,28 +157,65 @@ public sealed class DiaryService
         FoodLogEntry entry,
         double newGrams,
         Guid newMealSlotId,
+        DateOnly? newDate = null,
         CancellationToken ct = default)
     {
         if (newGrams <= 0) return entry;
 
-        var ratio = entry.QuantityGrams > 0 ? newGrams / entry.QuantityGrams : 1.0;
-        var scaled = entry.Nutrients.Scale(ratio);
-
+        if (newDate.HasValue)
+            entry.Date = newDate.Value;
         entry.MealSlotId = newMealSlotId;
-        entry.QuantityGrams = Math.Round(newGrams, 1);
-        entry.Servings = Math.Round(entry.Servings * ratio, 2);
-        entry.ServingLabel = $"{entry.QuantityGrams:0.#}g";
-        entry.CaloriesKcal = scaled.CaloriesKcal;
-        entry.FatG = scaled.FatG;
-        entry.SaturatedFatG = scaled.SaturatedFatG;
-        entry.CarbsG = scaled.CarbsG;
-        entry.SugarsG = scaled.SugarsG;
-        entry.FibreG = scaled.FibreG;
-        entry.ProteinG = scaled.ProteinG;
-        entry.SaltG = scaled.SaltG;
+
+        ApplyScaledQuantity(entry, entry, newGrams);
 
         await _logRepo.SaveAsync(entry, ct);
         return entry;
+    }
+
+    public async Task<FoodLogEntry> DuplicateEntryAsync(
+        FoodLogEntry source,
+        DateOnly targetDate,
+        Guid targetMealSlotId,
+        double targetGrams,
+        CancellationToken ct = default)
+    {
+        var effectiveGrams = targetGrams > 0 ? targetGrams : (source.QuantityGrams > 0 ? source.QuantityGrams : 100);
+        var copy = new FoodLogEntry
+        {
+            Id = Guid.NewGuid(),
+            Date = targetDate,
+            MealSlotId = targetMealSlotId,
+            FoodItemId = source.FoodItemId,
+            MealId = source.MealId,
+            NameSnapshot = source.NameSnapshot,
+            BrandSnapshot = source.BrandSnapshot,
+            LoggedAtUtc = DateTime.UtcNow
+        };
+
+        ApplyScaledQuantity(copy, source, effectiveGrams);
+
+        await _logRepo.SaveAsync(copy, ct);
+        return copy;
+    }
+
+    private static void ApplyScaledQuantity(FoodLogEntry target, FoodLogEntry source, double targetGrams)
+    {
+        var quantityChanged = source.QuantityGrams > 0 && Math.Abs(targetGrams - source.QuantityGrams) >= 0.05;
+        var ratio = quantityChanged ? targetGrams / source.QuantityGrams : 1.0;
+        var scaled = quantityChanged ? source.Nutrients.Scale(ratio) : source.Nutrients;
+        var roundedGrams = Math.Round(targetGrams, 1);
+
+        target.QuantityGrams = roundedGrams;
+        target.Servings = quantityChanged ? Math.Round(source.Servings * ratio, 2) : source.Servings;
+        target.ServingLabel = quantityChanged ? $"{roundedGrams:0.#}g" : source.ServingLabel;
+        target.CaloriesKcal = scaled.CaloriesKcal;
+        target.FatG = scaled.FatG;
+        target.SaturatedFatG = scaled.SaturatedFatG;
+        target.CarbsG = scaled.CarbsG;
+        target.SugarsG = scaled.SugarsG;
+        target.FibreG = scaled.FibreG;
+        target.ProteinG = scaled.ProteinG;
+        target.SaltG = scaled.SaltG;
     }
 
     public async Task<int> CopyEntriesFromDateAsync(
