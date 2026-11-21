@@ -232,27 +232,44 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
     {
         await _init.EnsureCreatedAsync(ct);
 
-        // Deduplicate by Barcode or ExternalId for external/API foods so repeated searches don't create duplicates
-        if (!string.IsNullOrWhiteSpace(item.Barcode))
+        var cleanBrand = string.IsNullOrWhiteSpace(item.Brand) ? null : item.Brand.Trim();
+        var cleanBarcode = string.IsNullOrWhiteSpace(item.Barcode) ? null : item.Barcode.Trim();
+        var cleanExternalId = string.IsNullOrWhiteSpace(item.ExternalId) ? null : item.ExternalId.Trim();
+
+        item.Name = item.Name.Trim();
+        item.Brand = cleanBrand;
+        item.Barcode = cleanBarcode;
+        item.ExternalId = cleanExternalId;
+
+        var existingById = await _engine.QueryAsync(
+            "SELECT 1 FROM FoodItems WHERE Id = ? LIMIT 1;",
+            new object?[] { item.Id.ToString() },
+            ct);
+
+        // Only deduplicate by Barcode or ExternalId for newly inserted rows, never overwrite an existing row's Id
+        if (existingById.Count == 0)
         {
-            var existingByBarcode = await _engine.QueryAsync(
-                "SELECT Id FROM FoodItems WHERE Barcode = ? AND IsDeleted = 0 LIMIT 1;",
-                new object?[] { item.Barcode.Trim() },
-                ct);
-            if (existingByBarcode.Count > 0)
+            if (cleanBarcode is not null)
             {
-                item.Id = RowReader.GetGuid(existingByBarcode[0], "Id");
+                var existingByBarcode = await _engine.QueryAsync(
+                    "SELECT Id FROM FoodItems WHERE Barcode = ? AND IsDeleted = 0 LIMIT 1;",
+                    new object?[] { cleanBarcode },
+                    ct);
+                if (existingByBarcode.Count > 0)
+                {
+                    item.Id = RowReader.GetGuid(existingByBarcode[0], "Id");
+                }
             }
-        }
-        else if (!string.IsNullOrWhiteSpace(item.ExternalId))
-        {
-            var existingByExt = await _engine.QueryAsync(
-                "SELECT Id FROM FoodItems WHERE ExternalId = ? AND IsDeleted = 0 LIMIT 1;",
-                new object?[] { item.ExternalId.Trim() },
-                ct);
-            if (existingByExt.Count > 0)
+            else if (cleanExternalId is not null)
             {
-                item.Id = RowReader.GetGuid(existingByExt[0], "Id");
+                var existingByExt = await _engine.QueryAsync(
+                    "SELECT Id FROM FoodItems WHERE ExternalId = ? AND IsDeleted = 0 LIMIT 1;",
+                    new object?[] { cleanExternalId },
+                    ct);
+                if (existingByExt.Count > 0)
+                {
+                    item.Id = RowReader.GetGuid(existingByExt[0], "Id");
+                }
             }
         }
 
@@ -285,8 +302,8 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
             """,
             new object?[]
             {
-                item.Id.ToString(), item.Name.Trim(), item.Brand?.Trim(), item.Barcode?.Trim(),
-                item.ExternalId?.Trim(), (int)item.Source, item.ServingSizeG, item.ServingDescription, item.UnitLabel,
+                item.Id.ToString(), item.Name, cleanBrand, cleanBarcode,
+                cleanExternalId, (int)item.Source, item.ServingSizeG, item.ServingDescription, item.UnitLabel,
                 item.CaloriesPer100G, item.FatPer100G, item.SaturatedFatPer100G, item.CarbsPer100G,
                 item.SugarsPer100G, item.FibrePer100G, item.ProteinPer100G, item.SaltPer100G,
                 item.IsDeleted ? 1 : 0, item.UpdatedAtUtc.ToString("O")

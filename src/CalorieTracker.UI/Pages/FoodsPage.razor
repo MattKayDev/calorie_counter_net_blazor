@@ -77,7 +77,8 @@
                     @foreach (var f in _foods)
                     {
                         <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px;">
-                            <div>
+                            <div style="@(f.Source == FoodSource.Custom ? "cursor:pointer; flex:1; min-width:0;" : "flex:1; min-width:0;")"
+                                 @onclick="() => { if (f.Source == FoodSource.Custom) OpenEditFoodModal(f); }">
                                 <div class="ct-entry-name">
                                     @f.Name
                                     @if (f.Source == FoodSource.Custom)
@@ -91,7 +92,13 @@
                                     • P @f.ProteinPer100G.ToString("0.#")g • C @f.CarbsPer100G.ToString("0.#")g • F @f.FatPer100G.ToString("0.#")g
                                 </div>
                             </div>
-                            <button class="ct-icon-btn" title="Delete" @onclick="() => DeleteFoodAsync(f.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                            <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
+                                @if (f.Source == FoodSource.Custom)
+                                {
+                                    <button class="ct-icon-btn" title="Edit custom food" aria-label="Edit custom food" @onclick="() => OpenEditFoodModal(f)"><AppIcon Name="@AppIcons.Edit" Size="16" /></button>
+                                }
+                                <button class="ct-icon-btn" title="Delete" aria-label="Delete food" @onclick="() => DeleteFoodAsync(f.Id)"><AppIcon Name="@AppIcons.Delete" Size="16" /></button>
+                            </div>
                         </div>
                     }
                 </div>
@@ -139,13 +146,13 @@
     }
 </div>
 
-<!-- Create Custom Food Modal -->
+<!-- Create / Edit Custom Food Modal -->
 @if (_foodModalOpen)
 {
     <div class="ct-modal-backdrop" @onclick="() => _foodModalOpen = false">
         <div class="ct-modal" @onclick:stopPropagation="true">
             <div class="ct-modal-head">
-                <strong>Create Custom Food</strong>
+                <strong>@(_isEditingFood ? "Edit Custom Food" : "Create Custom Food")</strong>
                 <button class="ct-icon-btn" @onclick="() => _foodModalOpen = false"><AppIcon Name="@AppIcons.Close" Size="18" /></button>
             </div>
             <div class="ct-modal-body">
@@ -218,7 +225,7 @@
                 </div>
 
                 <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:8px;" @onclick="SaveCustomFoodAsync">
-                    Save Custom Food
+                    @(_isEditingFood ? "Save Changes" : "Save Custom Food")
                 </button>
             </div>
         </div>
@@ -303,6 +310,7 @@
     private int _searchVersion;
     private bool _scannerOpen;
     private bool _foodModalOpen;
+    private bool _isEditingFood;
     private bool _mealModalOpen;
     private string? _notice;
 
@@ -417,6 +425,7 @@
             else
             {
                 _notice = $"Barcode {barcode} not found. Opening Custom Food form with barcode pre-filled.";
+                _isEditingFood = false;
                 _editFood = new FoodItem { Barcode = barcode, Source = FoodSource.Custom };
                 _foodModalOpen = true;
             }
@@ -442,7 +451,34 @@
 
     private void OpenNewFoodModal()
     {
+        _isEditingFood = false;
         _editFood = new FoodItem { Source = FoodSource.Custom, ServingSizeG = 100, ServingDescription = "100g", MeasurementUnit = "g" };
+        _foodModalOpen = true;
+    }
+
+    private void OpenEditFoodModal(FoodItem existing)
+    {
+        _isEditingFood = true;
+        _editFood = new FoodItem
+        {
+            Id = existing.Id,
+            Name = existing.Name,
+            Brand = existing.Brand,
+            Barcode = existing.Barcode,
+            ExternalId = existing.ExternalId,
+            Source = existing.Source,
+            ServingSizeG = existing.ServingSizeG,
+            ServingDescription = existing.ServingDescription,
+            MeasurementUnit = existing.UnitLabel,
+            CaloriesPer100G = existing.CaloriesPer100G,
+            FatPer100G = existing.FatPer100G,
+            SaturatedFatPer100G = existing.SaturatedFatPer100G,
+            CarbsPer100G = existing.CarbsPer100G,
+            SugarsPer100G = existing.SugarsPer100G,
+            FibrePer100G = existing.FibrePer100G,
+            ProteinPer100G = existing.ProteinPer100G,
+            SaltPer100G = existing.SaltPer100G
+        };
         _foodModalOpen = true;
     }
 
@@ -450,9 +486,15 @@
     {
         if (string.IsNullOrWhiteSpace(_editFood.Name)) return;
         _editFood.Source = FoodSource.Custom;
+        if (_editFood.ServingSizeG <= 0)
+            _editFood.ServingSizeG = 100;
+        if (string.IsNullOrWhiteSpace(_editFood.ServingDescription))
+            _editFood.ServingDescription = $"{_editFood.ServingSizeG:0.#}{_editFood.UnitLabel}";
         await FoodRepo.UpsertAsync(_editFood);
         _foodModalOpen = false;
-        _notice = $"Saved \"{_editFood.Name}\" to local SQLite.";
+        _notice = _isEditingFood
+            ? $"Updated \"{_editFood.Name}\"."
+            : $"Saved \"{_editFood.Name}\" to local SQLite.";
         await ReloadAsync();
     }
 

@@ -673,4 +673,62 @@ public class SqliteRepositoryAndLookupTests
         var item = await foodRepo.UpsertAsync(new FoodItem { Name = "Milk", MeasurementUnit = "ml" });
         Assert.Equal("ml", (await foodRepo.GetByIdAsync(item.Id))!.MeasurementUnit);
     }
+
+    [Fact]
+    public async Task CustomFood_CanBeCreatedPartiallyAndEditedLaterWithoutDuplication()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+
+        // Create a minimal partial custom food
+        var partial = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Homemade Protein Shake",
+            Source = FoodSource.Custom,
+            CaloriesPer100G = 95
+        });
+
+        // Later edit that same custom food to fill out all remaining details
+        var edited = new FoodItem
+        {
+            Id = partial.Id,
+            Name = "Homemade Protein Shake (Updated)",
+            Brand = "Kitchen",
+            Barcode = "5099999000111",
+            Source = FoodSource.Custom,
+            MeasurementUnit = "ml",
+            ServingSizeG = 250,
+            ServingDescription = "1 bottle (250ml)",
+            CaloriesPer100G = 102,
+            ProteinPer100G = 18.5,
+            CarbsPer100G = 4.2,
+            SugarsPer100G = 2.1,
+            FatPer100G = 1.8,
+            SaturatedFatPer100G = 0.7,
+            FibrePer100G = 0.9,
+            SaltPer100G = 0.25
+        };
+        await foodRepo.UpsertAsync(edited);
+
+        var all = await foodRepo.GetAllAsync();
+        Assert.Single(all);
+        var saved = all[0];
+        Assert.Equal(partial.Id, saved.Id);
+        Assert.Equal("Homemade Protein Shake (Updated)", saved.Name);
+        Assert.Equal("Kitchen", saved.Brand);
+        Assert.Equal("5099999000111", saved.Barcode);
+        Assert.Equal("ml", saved.MeasurementUnit);
+        Assert.Equal(250, saved.ServingSizeG);
+        Assert.Equal("1 bottle (250ml)", saved.ServingDescription);
+        Assert.Equal(102, saved.CaloriesPer100G);
+        Assert.Equal(18.5, saved.ProteinPer100G);
+        Assert.Equal(4.2, saved.CarbsPer100G);
+        Assert.Equal(2.1, saved.SugarsPer100G);
+        Assert.Equal(1.8, saved.FatPer100G);
+        Assert.Equal(0.7, saved.SaturatedFatPer100G);
+        Assert.Equal(0.9, saved.FibrePer100G);
+        Assert.Equal(0.25, saved.SaltPer100G);
+    }
 }
