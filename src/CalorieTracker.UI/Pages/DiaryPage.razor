@@ -1,4 +1,5 @@
 @page "/"
+@using System.Globalization
 @inject IUserProfileRepository ProfileRepo
 @inject IMealSlotRepository SlotRepo
 @inject IFoodLogRepository LogRepo
@@ -106,10 +107,10 @@ else
                             @foreach (var entry in slotEntries)
                             {
                                 <div class="ct-entry-row">
-                                    <div style="cursor:pointer; flex:1;" @onclick="() => OpenEditEntryModal(entry)">
+                                    <div style="cursor:pointer; flex:1; min-width:0;" @onclick="() => OpenEditEntryModal(entry)">
                                         <div class="ct-entry-name">@entry.NameSnapshot</div>
                                         <div class="ct-entry-meta">
-                                            @entry.ServingLabel • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
+                                            @DiaryService.FormatEntryServing(entry) • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
                                         </div>
                                     </div>
                                     <div class="ct-entry-right">
@@ -134,6 +135,9 @@ else
     var todayDate = DateOnly.FromDateTime(DateTime.Today);
     var yesterdayDate = todayDate.AddDays(-1);
     var tomorrowDate = todayDate.AddDays(1);
+    var editServingSize = ParsePositiveNumber(_editServingSizeText);
+    var editServings = ParsePositiveNumber(_editServingsText);
+    var editTotalQty = Math.Round(editServingSize * editServings, 1);
 
     <div class="ct-modal-backdrop" @onclick="() => _editingEntry = null">
         <div class="ct-modal" @onclick:stopPropagation="true">
@@ -163,8 +167,9 @@ else
 
                 <div class="ct-grid-2">
                     <div class="ct-field">
-                        <label class="ct-label">Quantity (@_editUnit)</label>
-                        <input class="ct-input" type="number" inputmode="decimal" step="1" min="1" @bind="_editGrams" @bind:event="oninput" />
+                        <label class="ct-label">Serving size (@_editUnit)</label>
+                        <input class="ct-input" type="number" inputmode="decimal" step="1" min="0.1"
+                               value="@_editServingSizeText" @oninput="OnEditServingSizeInput" @onchange="OnEditServingSizeInput" />
                     </div>
                     <div class="ct-field">
                         <label class="ct-label">Unit</label>
@@ -172,6 +177,33 @@ else
                             <button type="button" class="ct-tab @(_editUnit == "g" ? "active" : "")" @onclick='() => _editUnit = "g"'>g</button>
                             <button type="button" class="ct-tab @(_editUnit == "ml" ? "active" : "")" @onclick='() => _editUnit = "ml"'>ml</button>
                         </div>
+                    </div>
+                </div>
+
+                <div class="ct-field" style="margin-top:2px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <label class="ct-label" style="margin:0;">Servings</label>
+                        @if (editServings > 0 && Math.Abs(editServings - 1.0) >= 0.005)
+                        {
+                            <span class="ct-muted" style="font-size:0.76rem;">Total: @($"{editTotalQty:0.#}{_editUnit}")</span>
+                        }
+                    </div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button type="button"
+                                class="ct-btn ct-btn-sm @(Math.Abs(editServings - 1.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
+                                style="min-width:46px; height:42px;"
+                                @onclick="() => SetEditServings(1)">
+                            1x
+                        </button>
+                        <button type="button"
+                                class="ct-btn ct-btn-sm @(Math.Abs(editServings - 2.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
+                                style="min-width:46px; height:42px;"
+                                @onclick="() => SetEditServings(2)">
+                            2x
+                        </button>
+                        <input class="ct-input" style="flex:1;" type="number" inputmode="decimal" step="0.5" min="0.1"
+                               placeholder="Other (e.g. 5)"
+                               value="@_editServingsText" @oninput="OnEditServingsInput" @onchange="OnEditServingsInput" />
                     </div>
                 </div>
 
@@ -208,7 +240,9 @@ else
                 </div>
 
                 @{
-                    var ratio = _editingEntry.QuantityGrams > 0 ? _editGrams / _editingEntry.QuantityGrams : 1.0;
+                    var ratio = _editingEntry.QuantityGrams > 0
+                        ? editTotalQty / _editingEntry.QuantityGrams
+                        : (_editingEntry.Servings > 0 ? editServings / _editingEntry.Servings : 1.0);
                     var preview = _editingEntry.Nutrients.Scale(Math.Max(0, ratio));
                 }
                 <div class="ct-macro-row" style="margin-top:8px; margin-bottom:14px;">
@@ -230,7 +264,7 @@ else
                     </div>
                 </div>
 
-                <button class="ct-btn ct-btn-primary" style="width:100%;" @onclick="SaveEntryModalAsync">
+                <button class="ct-btn ct-btn-primary" style="width:100%;" disabled="@(editTotalQty <= 0 || editServings <= 0)" @onclick="SaveEntryModalAsync">
                     @if (_isDuplicateMode)
                     {
                         <AppIcon Name="@AppIcons.Copy" Size="16" /> <span>Duplicate Item</span>
@@ -283,7 +317,9 @@ else
     private string? _toast;
 
     private FoodLogEntry? _editingEntry;
-    private double _editGrams;
+    private double _editInitialServingSize;
+    private string _editServingSizeText = "100";
+    private string _editServingsText = "1";
     private string _editUnit = "g";
     private Guid _editSlotId;
     private DateOnly _editDate;
@@ -325,7 +361,17 @@ else
     {
         _editingEntry = entry;
         _isDuplicateMode = duplicate;
-        _editGrams = entry.QuantityGrams > 0 ? entry.QuantityGrams : 100;
+        var initialServings = entry.Servings > 0 ? Math.Round(entry.Servings, 2) : 1.0;
+        var initialTotal = entry.QuantityGrams > 0 ? entry.QuantityGrams : 100.0;
+        var perServing = Math.Round(initialTotal / initialServings, 2);
+        if (perServing <= 0)
+        {
+            perServing = initialTotal;
+            initialServings = 1;
+        }
+        _editInitialServingSize = perServing;
+        _editServingSizeText = perServing.ToString("0.##", CultureInfo.InvariantCulture);
+        _editServingsText = initialServings.ToString("0.##", CultureInfo.InvariantCulture);
         _editUnit = entry.UnitLabel;
         _editDate = entry.Date;
         _editSlotId = FoodSlots.Any(s => s.Id == entry.MealSlotId)
@@ -333,24 +379,63 @@ else
             : (FoodSlots.FirstOrDefault()?.Id ?? entry.MealSlotId);
     }
 
+    private static double ParsePositiveNumber(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return 0;
+        var normalized = text.Trim().Replace(',', '.');
+        return double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var val) && val > 0
+            ? val
+            : 0;
+    }
+
+    private void OnEditServingSizeInput(ChangeEventArgs e)
+    {
+        _editServingSizeText = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void SetEditServings(double count)
+    {
+        _editServingsText = count.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private void OnEditServingsInput(ChangeEventArgs e)
+    {
+        _editServingsText = e.Value?.ToString() ?? string.Empty;
+    }
+
     private async Task SaveEntryModalAsync()
     {
-        if (_editingEntry is null || _editGrams <= 0) return;
+        var servingSize = ParsePositiveNumber(_editServingSizeText);
+        var servings = ParsePositiveNumber(_editServingsText);
+        var totalQty = Math.Round(servingSize * servings, 1);
+        if (_editingEntry is null || totalQty <= 0 || servings <= 0) return;
 
         var slotName = FoodSlots.FirstOrDefault(s => s.Id == _editSlotId)?.Name ?? "Diary";
         var itemName = _editingEntry.NameSnapshot;
         var targetDate = _editDate;
 
+        string? servingLabel;
+        if (_editingEntry.MealId.HasValue && Math.Abs(servingSize - _editInitialServingSize) < 0.05)
+        {
+            servingLabel = Math.Abs(servings - 1.0) < 0.005 ? "1 serving" : $"{servings:0.##} servings";
+        }
+        else
+        {
+            servingLabel = Math.Abs(servings - 1.0) < 0.005
+                ? null
+                : $"{servings:0.##} × {servingSize:0.#}{_editUnit} ({totalQty:0.#}{_editUnit})";
+        }
+
         if (_isDuplicateMode)
         {
-            await Diary.DuplicateEntryAsync(_editingEntry, targetDate, _editSlotId, _editGrams, _editUnit);
+            await Diary.DuplicateEntryAsync(_editingEntry, targetDate, _editSlotId, totalQty, _editUnit, servings, servingLabel);
             _toast = targetDate == _selectedDate
                 ? $"Duplicated \"{itemName}\" into {slotName}."
                 : $"Duplicated \"{itemName}\" into {slotName} on {targetDate:dd MMM}.";
         }
         else
         {
-            await Diary.UpdateEntryQuantityAsync(_editingEntry, _editGrams, _editSlotId, targetDate, _editUnit);
+            await Diary.UpdateEntryQuantityAsync(_editingEntry, totalQty, _editSlotId, targetDate, _editUnit, servings, servingLabel);
             _toast = targetDate != _selectedDate
                 ? $"Moved \"{itemName}\" to {slotName} on {targetDate:dd MMM}."
                 : "Updated logged item.";

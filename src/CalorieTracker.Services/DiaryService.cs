@@ -70,6 +70,19 @@ public sealed class DiaryService
         return total;
     }
 
+    public static string FormatEntryServing(FoodLogEntry entry)
+    {
+        var servings = entry.Servings > 0 ? Math.Round(entry.Servings, 2) : 1.0;
+        var servingsText = Math.Abs(servings - 1.0) < 0.005
+            ? "1 serving"
+            : $"{servings:0.##} servings";
+
+        if (entry.QuantityGrams <= 0)
+            return servingsText;
+
+        return $"{servingsText} ({entry.QuantityGrams:0.#}{entry.UnitLabel})";
+    }
+
     public async Task<FoodLogEntry> LogFoodItemAsync(
         DateOnly date,
         Guid mealSlotId,
@@ -177,6 +190,8 @@ public sealed class DiaryService
         Guid newMealSlotId,
         DateOnly? newDate = null,
         string? newUnit = null,
+        double? newServings = null,
+        string? newServingLabel = null,
         CancellationToken ct = default)
     {
         if (newGrams <= 0) return entry;
@@ -185,7 +200,7 @@ public sealed class DiaryService
             entry.Date = newDate.Value;
         entry.MealSlotId = newMealSlotId;
 
-        ApplyScaledQuantity(entry, entry, newGrams, newUnit);
+        ApplyScaledQuantity(entry, entry, newGrams, newUnit, newServings, newServingLabel);
 
         await _logRepo.SaveAsync(entry, ct);
         return entry;
@@ -197,6 +212,8 @@ public sealed class DiaryService
         Guid targetMealSlotId,
         double targetGrams,
         string? targetUnit = null,
+        double? targetServings = null,
+        string? targetServingLabel = null,
         CancellationToken ct = default)
     {
         var effectiveGrams = targetGrams > 0 ? targetGrams : (source.QuantityGrams > 0 ? source.QuantityGrams : 100);
@@ -212,25 +229,45 @@ public sealed class DiaryService
             LoggedAtUtc = DateTime.UtcNow
         };
 
-        ApplyScaledQuantity(copy, source, effectiveGrams, targetUnit);
+        ApplyScaledQuantity(copy, source, effectiveGrams, targetUnit, targetServings, targetServingLabel);
 
         await _logRepo.SaveAsync(copy, ct);
         return copy;
     }
 
-    private static void ApplyScaledQuantity(FoodLogEntry target, FoodLogEntry source, double targetGrams, string? targetUnit)
+    private static void ApplyScaledQuantity(
+        FoodLogEntry target,
+        FoodLogEntry source,
+        double targetGrams,
+        string? targetUnit,
+        double? targetServings = null,
+        string? targetServingLabel = null)
     {
         var normalizedUnit = FoodItem.NormalizeUnit(targetUnit ?? source.MeasurementUnit);
         var unitChanged = !string.Equals(source.UnitLabel, normalizedUnit, StringComparison.OrdinalIgnoreCase);
         var quantityChanged = source.QuantityGrams > 0 && Math.Abs(targetGrams - source.QuantityGrams) >= 0.05;
-        var ratio = quantityChanged ? targetGrams / source.QuantityGrams : 1.0;
-        var scaled = quantityChanged ? source.Nutrients.Scale(ratio) : source.Nutrients;
+        var resolvedServings = targetServings is > 0
+            ? Math.Round(targetServings.Value, 2)
+            : (quantityChanged ? Math.Round(source.Servings * (targetGrams / source.QuantityGrams), 2) : source.Servings);
+        var servingsChanged = Math.Abs(resolvedServings - source.Servings) >= 0.005;
+
+        double ratio;
+        if (source.QuantityGrams > 0)
+            ratio = quantityChanged ? targetGrams / source.QuantityGrams : 1.0;
+        else if (source.Servings > 0 && servingsChanged)
+            ratio = resolvedServings / source.Servings;
+        else
+            ratio = 1.0;
+
+        var scaled = Math.Abs(ratio - 1.0) >= 0.0001 ? source.Nutrients.Scale(ratio) : source.Nutrients;
         var roundedGrams = Math.Round(targetGrams, 1);
 
         target.QuantityGrams = roundedGrams;
-        target.Servings = quantityChanged ? Math.Round(source.Servings * ratio, 2) : source.Servings;
+        target.Servings = resolvedServings;
         target.MeasurementUnit = normalizedUnit;
-        target.ServingLabel = (quantityChanged || unitChanged) ? $"{roundedGrams:0.#}{normalizedUnit}" : source.ServingLabel;
+        target.ServingLabel = (quantityChanged || unitChanged || servingsChanged)
+            ? (!string.IsNullOrWhiteSpace(targetServingLabel) ? targetServingLabel : $"{roundedGrams:0.#}{normalizedUnit}")
+            : source.ServingLabel;
         target.CaloriesKcal = scaled.CaloriesKcal;
         target.FatG = scaled.FatG;
         target.SaturatedFatG = scaled.SaturatedFatG;

@@ -813,4 +813,81 @@ public class SqliteRepositoryAndLookupTests
         Assert.Single(remainingCustom);
         Assert.Equal(customOats.Id, remainingCustom[0].Id);
     }
+
+    [Fact]
+    public async Task EditAndDuplicateEntry_SupportsServingsMultiplierAndFormatsDisplay()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+
+        var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
+        var slotRepo = new SqliteMealSlotRepository(personalEngine, personalInit);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+        var logRepo = new SqliteFoodLogRepository(personalEngine, personalInit);
+        var bodyRepo = new SqliteBodyMeasurementRepository(personalEngine, personalInit);
+        var diary = new DiaryService(logRepo, bodyRepo, profileRepo);
+
+        var foodSlots = (await slotRepo.GetAllAsync()).Where(s => !s.IsWaterTracker).ToList();
+        var bar = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Protein Flapjack",
+            ServingSizeG = 48,
+            CaloriesPer100G = 500,
+            ProteinPer100G = 10
+        });
+
+        var day = new DateOnly(2026, 11, 21);
+        var entry = await diary.LogFoodItemAsync(day, foodSlots[0].Id, bar, grams: 48, servings: 1);
+        Assert.Equal("1 serving (48g)", DiaryService.FormatEntryServing(entry));
+
+        // Edit entry to 3 servings (3 x 48g = 144g)
+        await diary.UpdateEntryQuantityAsync(
+            entry,
+            newGrams: 144,
+            newMealSlotId: foodSlots[0].Id,
+            newUnit: "g",
+            newServings: 3,
+            newServingLabel: "3 × 48g (144g)");
+
+        var edited = (await logRepo.GetByDateAsync(day)).Single(e => e.Id == entry.Id);
+        Assert.Equal(144, edited.QuantityGrams);
+        Assert.Equal(3, edited.Servings);
+        Assert.Equal("3 × 48g (144g)", edited.ServingLabel);
+        Assert.Equal(720, edited.CaloriesKcal);
+        Assert.Equal(14.4, edited.ProteinG);
+        Assert.Equal("3 servings (144g)", DiaryService.FormatEntryServing(edited));
+
+        // Edit entry keeping total 144g while changing serving count to 2 x 72g
+        await diary.UpdateEntryQuantityAsync(
+            edited,
+            newGrams: 144,
+            newMealSlotId: foodSlots[0].Id,
+            newUnit: "g",
+            newServings: 2,
+            newServingLabel: "2 × 72g (144g)");
+
+        var rebucketed = (await logRepo.GetByDateAsync(day)).Single(e => e.Id == entry.Id);
+        Assert.Equal(2, rebucketed.Servings);
+        Assert.Equal("2 × 72g (144g)", rebucketed.ServingLabel);
+        Assert.Equal(720, rebucketed.CaloriesKcal);
+        Assert.Equal("2 servings (144g)", DiaryService.FormatEntryServing(rebucketed));
+
+        // Duplicate entry with 5 servings (5 x 48g = 240g)
+        var duplicated = await diary.DuplicateEntryAsync(
+            rebucketed,
+            targetDate: day,
+            targetMealSlotId: foodSlots[1].Id,
+            targetGrams: 240,
+            targetUnit: "g",
+            targetServings: 5,
+            targetServingLabel: "5 × 48g (240g)");
+
+        Assert.Equal(5, duplicated.Servings);
+        Assert.Equal(240, duplicated.QuantityGrams);
+        Assert.Equal(1200, duplicated.CaloriesKcal);
+        Assert.Equal("5 × 48g (240g)", duplicated.ServingLabel);
+        Assert.Equal("5 servings (240g)", DiaryService.FormatEntryServing(duplicated));
+    }
 }
