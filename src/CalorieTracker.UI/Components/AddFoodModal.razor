@@ -28,7 +28,7 @@
                 }
                 @if (_selectedFood is not null)
                 {
-                    var servings = ParsePositiveServings(_servingsText);
+                    var servings = ParsePositiveNumber(_servingsText);
                     var totalQty = Math.Round(_grams * servings, 1);
 
                     <div>
@@ -159,9 +159,10 @@
                 }
                 else
                 {
-                    <div class="ct-tabs" style="margin-bottom:12px;">
-                        <button class="ct-tab @(_tab == 0 ? "active" : "")" @onclick="() => _tab = 0">Foods & Scan</button>
-                        <button class="ct-tab @(_tab == 1 ? "active" : "")" @onclick="() => _tab = 1">Saved Meals (@_meals.Count)</button>
+                    <div class="ct-tabs ct-tabs-3" style="margin-bottom:12px;">
+                        <button class="ct-tab @(_tab == 0 ? "active" : "")" @onclick="() => _tab = 0">Foods</button>
+                        <button class="ct-tab @(_tab == 1 ? "active" : "")" @onclick="() => _tab = 1">Meals (@_meals.Count)</button>
+                        <button class="ct-tab @(_tab == 2 ? "active" : "")" @onclick="() => _tab = 2">Quick kcal</button>
                     </div>
 
                     @if (_tab == 0)
@@ -229,7 +230,7 @@
                             </div>
                         }
                     }
-                    else
+                    else if (_tab == 1)
                     {
                         @if (_meals.Count == 0)
                         {
@@ -257,6 +258,39 @@
                                 }
                             </div>
                         }
+                    }
+                    else
+                    {
+                        var quickKcal = ParsePositiveNumber(_quickCaloriesText);
+                        <div class="ct-card" style="background:var(--ct-surface-muted); box-shadow:none;">
+                            <div class="ct-field">
+                                <label class="ct-label">Calories (kcal) *</label>
+                                <input class="ct-input" type="number" inputmode="decimal" step="1" min="1"
+                                       placeholder="e.g. 300"
+                                       value="@_quickCaloriesText" @oninput="OnQuickCaloriesInput" @onchange="OnQuickCaloriesInput" />
+                            </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                                @foreach (var preset in _quickCaloriePresets)
+                                {
+                                    var isActive = Math.Abs(quickKcal - preset) < 0.05;
+                                    <button type="button"
+                                            class="ct-btn ct-btn-sm @(isActive ? "ct-btn-soft" : "ct-btn-outline")"
+                                            @onclick="() => SetQuickCalories(preset)">
+                                        @($"{preset:0} kcal")
+                                    </button>
+                                }
+                            </div>
+                            <div class="ct-field" style="margin-bottom:0;">
+                                <label class="ct-label">Label (optional)</label>
+                                <input class="ct-input" placeholder="e.g. Dining out, Snack" @bind="_quickLabel" />
+                            </div>
+                        </div>
+
+                        <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:12px;"
+                                disabled="@(quickKcal <= 0 || _selectedSlotId == Guid.Empty)"
+                                @onclick="ConfirmQuickCaloriesAsync">
+                            Add @(quickKcal > 0 ? $"{quickKcal:0.#} kcal" : "Calories") to @ActiveSlotName
+                        </button>
                     }
                 }
             </div>
@@ -291,6 +325,9 @@
     private double _grams = 100;
     private string _unit = "g";
     private string _servingsText = "1";
+    private string _quickCaloriesText = string.Empty;
+    private string _quickLabel = string.Empty;
+    private static readonly double[] _quickCaloriePresets = [100, 200, 300, 500];
     private bool _isSearching;
     private bool _isLookingUpBarcode;
     private string _loadingText = "Searching...";
@@ -317,6 +354,8 @@
             _grams = 100;
             _unit = "g";
             _servingsText = "1";
+            _quickCaloriesText = string.Empty;
+            _quickLabel = string.Empty;
             _statusMessage = null;
             _searchQuery = string.Empty;
             _isLookingUpBarcode = false;
@@ -456,7 +495,7 @@
         _unit = FoodItem.NormalizeUnit(unit);
     }
 
-    private static double ParsePositiveServings(string? text)
+    private static double ParsePositiveNumber(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return 0;
         var normalized = text.Trim().Replace(',', '.');
@@ -475,9 +514,19 @@
         _servingsText = e.Value?.ToString() ?? string.Empty;
     }
 
+    private void SetQuickCalories(double kcal)
+    {
+        _quickCaloriesText = kcal.ToString("0.#", CultureInfo.InvariantCulture);
+    }
+
+    private void OnQuickCaloriesInput(ChangeEventArgs e)
+    {
+        _quickCaloriesText = e.Value?.ToString() ?? string.Empty;
+    }
+
     private async Task ConfirmLogFoodAsync()
     {
-        var servings = ParsePositiveServings(_servingsText);
+        var servings = ParsePositiveNumber(_servingsText);
         var totalQty = Math.Round(_grams * servings, 1);
         if (_selectedFood is null || totalQty <= 0 || _selectedSlotId == Guid.Empty) return;
 
@@ -486,6 +535,16 @@
             : $"{servings:0.##} × {_grams:0.#}{_unit} ({totalQty:0.#}{_unit})";
 
         await Diary.LogFoodItemAsync(Date, _selectedSlotId, _selectedFood, totalQty, servingLabel: servingLabel, unit: _unit, servings: servings);
+        await OnLogged.InvokeAsync();
+        await Close();
+    }
+
+    private async Task ConfirmQuickCaloriesAsync()
+    {
+        var kcal = ParsePositiveNumber(_quickCaloriesText);
+        if (kcal <= 0 || _selectedSlotId == Guid.Empty) return;
+
+        await Diary.LogQuickCaloriesAsync(Date, _selectedSlotId, kcal, _quickLabel);
         await OnLogged.InvokeAsync();
         await Close();
     }

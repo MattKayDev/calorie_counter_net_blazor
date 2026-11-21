@@ -168,6 +168,8 @@ public sealed class FoodLogEntry
 
     public string UnitLabel => FoodItem.NormalizeUnit(MeasurementUnit);
 
+    public bool IsQuickCalorieEntry => !FoodItemId.HasValue && !MealId.HasValue && QuantityGrams <= 0;
+
     public double CaloriesKcal { get; set; }
     public double FatG { get; set; }
     public double SaturatedFatG { get; set; }

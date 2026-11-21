@@ -72,6 +72,9 @@ public sealed class DiaryService
 
     public static string FormatEntryServing(FoodLogEntry entry)
     {
+        if (entry.IsQuickCalorieEntry)
+            return "Quick calories";
+
         var servings = entry.Servings > 0 ? Math.Round(entry.Servings, 2) : 1.0;
         var servingsText = Math.Abs(servings - 1.0) < 0.005
             ? "1 serving"
@@ -160,6 +163,23 @@ public sealed class DiaryService
         return entry;
     }
 
+    public async Task<FoodLogEntry> LogQuickCaloriesAsync(
+        DateOnly date,
+        Guid mealSlotId,
+        double calories,
+        string? label = null,
+        CancellationToken ct = default)
+    {
+        if (calories <= 0)
+            throw new ArgumentOutOfRangeException(nameof(calories), "Calories must be positive.");
+
+        var name = string.IsNullOrWhiteSpace(label) ? "Quick Calories" : label.Trim();
+        var entry = BuildQuickCalorieEntry(date, mealSlotId, Math.Round(calories, 1), name);
+
+        await _logRepo.SaveAsync(entry, ct);
+        return entry;
+    }
+
     public async Task<BodyMeasurement> SaveBodyMeasurementAsync(BodyMeasurement measurement, CancellationToken ct = default)
     {
         var profile = await _profileRepo.GetOrCreateAsync(ct);
@@ -234,6 +254,72 @@ public sealed class DiaryService
         await _logRepo.SaveAsync(copy, ct);
         return copy;
     }
+
+    public async Task<FoodLogEntry> UpdateQuickCaloriesAsync(
+        FoodLogEntry entry,
+        double newCalories,
+        string? newLabel,
+        Guid newMealSlotId,
+        DateOnly? newDate = null,
+        CancellationToken ct = default)
+    {
+        if (newCalories <= 0) return entry;
+
+        if (newDate.HasValue)
+            entry.Date = newDate.Value;
+        entry.MealSlotId = newMealSlotId;
+        entry.NameSnapshot = string.IsNullOrWhiteSpace(newLabel) ? "Quick Calories" : newLabel.Trim();
+        entry.CaloriesKcal = Math.Round(newCalories, 1);
+        entry.QuantityGrams = 0;
+        entry.Servings = 1;
+        entry.ServingLabel = "Quick calories";
+
+        await _logRepo.SaveAsync(entry, ct);
+        return entry;
+    }
+
+    public async Task<FoodLogEntry> DuplicateQuickCaloriesAsync(
+        FoodLogEntry source,
+        DateOnly targetDate,
+        Guid targetMealSlotId,
+        double targetCalories,
+        string? targetLabel = null,
+        CancellationToken ct = default)
+    {
+        var effectiveCalories = targetCalories > 0 ? Math.Round(targetCalories, 1) : source.CaloriesKcal;
+        var effectiveName = string.IsNullOrWhiteSpace(targetLabel)
+            ? (string.IsNullOrWhiteSpace(source.NameSnapshot) ? "Quick Calories" : source.NameSnapshot)
+            : targetLabel.Trim();
+
+        var copy = BuildQuickCalorieEntry(targetDate, targetMealSlotId, effectiveCalories, effectiveName);
+
+        await _logRepo.SaveAsync(copy, ct);
+        return copy;
+    }
+
+    private static FoodLogEntry BuildQuickCalorieEntry(DateOnly date, Guid mealSlotId, double calories, string name) => new()
+    {
+        Id = Guid.NewGuid(),
+        Date = date,
+        MealSlotId = mealSlotId,
+        FoodItemId = null,
+        MealId = null,
+        NameSnapshot = name,
+        BrandSnapshot = null,
+        QuantityGrams = 0,
+        Servings = 1,
+        ServingLabel = "Quick calories",
+        MeasurementUnit = "g",
+        CaloriesKcal = calories,
+        FatG = 0,
+        SaturatedFatG = 0,
+        CarbsG = 0,
+        SugarsG = 0,
+        FibreG = 0,
+        ProteinG = 0,
+        SaltG = 0,
+        LoggedAtUtc = DateTime.UtcNow
+    };
 
     private static void ApplyScaledQuantity(
         FoodLogEntry target,

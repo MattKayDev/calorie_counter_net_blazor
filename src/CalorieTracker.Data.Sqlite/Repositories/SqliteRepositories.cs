@@ -598,6 +598,8 @@ public sealed class SqliteFoodLogRepository : IFoodLogRepository
             ON CONFLICT(Id) DO UPDATE SET
                 Date = excluded.Date,
                 MealSlotId = excluded.MealSlotId,
+                NameSnapshot = excluded.NameSnapshot,
+                BrandSnapshot = excluded.BrandSnapshot,
                 QuantityGrams = excluded.QuantityGrams,
                 Servings = excluded.Servings,
                 ServingLabel = excluded.ServingLabel,

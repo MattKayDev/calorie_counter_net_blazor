@@ -902,4 +902,54 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal("5 × 48g (240g)", duplicated.ServingLabel);
         Assert.Equal("5 servings (240g)", DiaryService.FormatEntryServing(duplicated));
     }
+
+    [Fact]
+    public async Task QuickCalories_CanBeLoggedEditedDuplicatedAndIncludedInDailyTotals()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
+        var slotRepo = new SqliteMealSlotRepository(personalEngine, personalInit);
+        var logRepo = new SqliteFoodLogRepository(personalEngine, personalInit);
+        var bodyRepo = new SqliteBodyMeasurementRepository(personalEngine, personalInit);
+        var diary = new DiaryService(logRepo, bodyRepo, profileRepo);
+
+        var foodSlots = (await slotRepo.GetAllAsync()).Where(s => !s.IsWaterTracker).ToList();
+        var day = new DateOnly(2026, 11, 21);
+
+        // Log 300 quick calories without a custom label -> defaults to "Quick Calories"
+        var logged = await diary.LogQuickCaloriesAsync(day, foodSlots[0].Id, 300, label: null);
+        Assert.True(logged.IsQuickCalorieEntry);
+        Assert.Equal("Quick Calories", logged.NameSnapshot);
+        Assert.Equal(300, logged.CaloriesKcal);
+        Assert.Equal(0, logged.QuantityGrams);
+        Assert.Equal(0, logged.ProteinG);
+        Assert.Equal("Quick calories", DiaryService.FormatEntryServing(logged));
+
+        var dayTotals = await logRepo.GetDailyCalorieTotalsAsync(day, day);
+        Assert.Equal(300, dayTotals[day]);
+
+        // Edit quick calories to 450 kcal with a custom label in another meal slot
+        await diary.UpdateQuickCaloriesAsync(logged, 450, "Office cake", foodSlots[1].Id, day);
+        var edited = (await logRepo.GetByDateAsync(day)).Single(e => e.Id == logged.Id);
+        Assert.True(edited.IsQuickCalorieEntry);
+        Assert.Equal("Office cake", edited.NameSnapshot);
+        Assert.Equal(450, edited.CaloriesKcal);
+        Assert.Equal(foodSlots[1].Id, edited.MealSlotId);
+
+        // Duplicate quick calories to next day with updated amount and label
+        var nextDay = day.AddDays(1);
+        var duplicated = await diary.DuplicateQuickCaloriesAsync(edited, nextDay, foodSlots[2].Id, 200, "Snack");
+        Assert.NotEqual(edited.Id, duplicated.Id);
+        Assert.True(duplicated.IsQuickCalorieEntry);
+        Assert.Equal(nextDay, duplicated.Date);
+        Assert.Equal(foodSlots[2].Id, duplicated.MealSlotId);
+        Assert.Equal("Snack", duplicated.NameSnapshot);
+        Assert.Equal(200, duplicated.CaloriesKcal);
+
+        // Original remains unchanged at 450 kcal
+        var reloadedOriginal = (await logRepo.GetByDateAsync(day)).Single(e => e.Id == logged.Id);
+        Assert.Equal(450, reloadedOriginal.CaloriesKcal);
+        Assert.Equal("Office cake", reloadedOriginal.NameSnapshot);
+    }
 }

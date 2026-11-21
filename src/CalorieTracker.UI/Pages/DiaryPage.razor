@@ -110,7 +110,14 @@ else
                                     <div style="cursor:pointer; flex:1; min-width:0;" @onclick="() => OpenEditEntryModal(entry)">
                                         <div class="ct-entry-name">@entry.NameSnapshot</div>
                                         <div class="ct-entry-meta">
-                                            @DiaryService.FormatEntryServing(entry) • P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
+                                            @if (entry.IsQuickCalorieEntry)
+                                            {
+                                                <span>Quick calories</span>
+                                            }
+                                            else
+                                            {
+                                                @DiaryService.FormatEntryServing(entry) @:• P @entry.ProteinG.ToString("0")g • C @entry.CarbsG.ToString("0")g • F @entry.FatG.ToString("0")g
+                                            }
                                         </div>
                                     </div>
                                     <div class="ct-entry-right">
@@ -135,6 +142,8 @@ else
     var todayDate = DateOnly.FromDateTime(DateTime.Today);
     var yesterdayDate = todayDate.AddDays(-1);
     var tomorrowDate = todayDate.AddDays(1);
+    var isQuick = _editingEntry.IsQuickCalorieEntry;
+    var editQuickKcal = ParsePositiveNumber(_editQuickCaloriesText);
     var editServingSize = ParsePositiveNumber(_editServingSizeText);
     var editServings = ParsePositiveNumber(_editServingsText);
     var editTotalQty = Math.Round(editServingSize * editServings, 1);
@@ -165,47 +174,62 @@ else
                     </button>
                 </div>
 
-                <div class="ct-grid-2">
+                @if (isQuick)
+                {
                     <div class="ct-field">
-                        <label class="ct-label">Serving size (@_editUnit)</label>
-                        <input class="ct-input" type="number" inputmode="decimal" step="1" min="0.1"
-                               value="@_editServingSizeText" @oninput="OnEditServingSizeInput" @onchange="OnEditServingSizeInput" />
+                        <label class="ct-label">Calories (kcal)</label>
+                        <input class="ct-input" type="number" inputmode="decimal" step="1" min="1"
+                               value="@_editQuickCaloriesText" @oninput="OnEditQuickCaloriesInput" @onchange="OnEditQuickCaloriesInput" />
                     </div>
                     <div class="ct-field">
-                        <label class="ct-label">Unit</label>
-                        <div class="ct-tabs">
-                            <button type="button" class="ct-tab @(_editUnit == "g" ? "active" : "")" @onclick='() => _editUnit = "g"'>g</button>
-                            <button type="button" class="ct-tab @(_editUnit == "ml" ? "active" : "")" @onclick='() => _editUnit = "ml"'>ml</button>
+                        <label class="ct-label">Label (optional)</label>
+                        <input class="ct-input" placeholder="Quick Calories" @bind="_editQuickLabel" />
+                    </div>
+                }
+                else
+                {
+                    <div class="ct-grid-2">
+                        <div class="ct-field">
+                            <label class="ct-label">Serving size (@_editUnit)</label>
+                            <input class="ct-input" type="number" inputmode="decimal" step="1" min="0.1"
+                                   value="@_editServingSizeText" @oninput="OnEditServingSizeInput" @onchange="OnEditServingSizeInput" />
+                        </div>
+                        <div class="ct-field">
+                            <label class="ct-label">Unit</label>
+                            <div class="ct-tabs">
+                                <button type="button" class="ct-tab @(_editUnit == "g" ? "active" : "")" @onclick='() => _editUnit = "g"'>g</button>
+                                <button type="button" class="ct-tab @(_editUnit == "ml" ? "active" : "")" @onclick='() => _editUnit = "ml"'>ml</button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="ct-field" style="margin-top:2px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                        <label class="ct-label" style="margin:0;">Servings</label>
-                        @if (editServings > 0 && Math.Abs(editServings - 1.0) >= 0.005)
-                        {
-                            <span class="ct-muted" style="font-size:0.76rem;">Total: @($"{editTotalQty:0.#}{_editUnit}")</span>
-                        }
+                    <div class="ct-field" style="margin-top:2px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                            <label class="ct-label" style="margin:0;">Servings</label>
+                            @if (editServings > 0 && Math.Abs(editServings - 1.0) >= 0.005)
+                            {
+                                <span class="ct-muted" style="font-size:0.76rem;">Total: @($"{editTotalQty:0.#}{_editUnit}")</span>
+                            }
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <button type="button"
+                                    class="ct-btn ct-btn-sm @(Math.Abs(editServings - 1.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
+                                    style="min-width:46px; height:42px;"
+                                    @onclick="() => SetEditServings(1)">
+                                1x
+                            </button>
+                            <button type="button"
+                                    class="ct-btn ct-btn-sm @(Math.Abs(editServings - 2.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
+                                    style="min-width:46px; height:42px;"
+                                    @onclick="() => SetEditServings(2)">
+                                2x
+                            </button>
+                            <input class="ct-input" style="flex:1;" type="number" inputmode="decimal" step="0.5" min="0.1"
+                                   placeholder="Other (e.g. 5)"
+                                   value="@_editServingsText" @oninput="OnEditServingsInput" @onchange="OnEditServingsInput" />
+                        </div>
                     </div>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <button type="button"
-                                class="ct-btn ct-btn-sm @(Math.Abs(editServings - 1.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
-                                style="min-width:46px; height:42px;"
-                                @onclick="() => SetEditServings(1)">
-                            1x
-                        </button>
-                        <button type="button"
-                                class="ct-btn ct-btn-sm @(Math.Abs(editServings - 2.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
-                                style="min-width:46px; height:42px;"
-                                @onclick="() => SetEditServings(2)">
-                            2x
-                        </button>
-                        <input class="ct-input" style="flex:1;" type="number" inputmode="decimal" step="0.5" min="0.1"
-                               placeholder="Other (e.g. 5)"
-                               value="@_editServingsText" @oninput="OnEditServingsInput" @onchange="OnEditServingsInput" />
-                    </div>
-                </div>
+                }
 
                 <div class="ct-field">
                     <label class="ct-label">Meal Time</label>
@@ -239,32 +263,36 @@ else
                     <input class="ct-input" type="date" @bind="_editDate" />
                 </div>
 
-                @{
+                @if (!isQuick)
+                {
                     var ratio = _editingEntry.QuantityGrams > 0
                         ? editTotalQty / _editingEntry.QuantityGrams
                         : (_editingEntry.Servings > 0 ? editServings / _editingEntry.Servings : 1.0);
                     var preview = _editingEntry.Nutrients.Scale(Math.Max(0, ratio));
-                }
-                <div class="ct-macro-row" style="margin-top:8px; margin-bottom:14px;">
-                    <div class="ct-macro-pill">
-                        <div class="ct-macro-name">Calories</div>
-                        <div class="ct-macro-val" style="color:var(--ct-green-dark)">@preview.CaloriesKcal.ToString("0") kcal</div>
-                    </div>
-                    <div class="ct-macro-pill">
-                        <div class="ct-macro-name">Protein</div>
-                        <div class="ct-macro-val">@preview.ProteinG.ToString("0.0")g</div>
-                    </div>
-                    <div class="ct-macro-pill">
-                        <div class="ct-macro-name">Carbs</div>
-                        <div class="ct-macro-val">@preview.CarbsG.ToString("0.0")g</div>
-                    </div>
-                    <div class="ct-macro-pill">
-                        <div class="ct-macro-name">Fat</div>
-                        <div class="ct-macro-val">@preview.FatG.ToString("0.0")g</div>
-                    </div>
-                </div>
 
-                <button class="ct-btn ct-btn-primary" style="width:100%;" disabled="@(editTotalQty <= 0 || editServings <= 0)" @onclick="SaveEntryModalAsync">
+                    <div class="ct-macro-row" style="margin-top:8px; margin-bottom:14px;">
+                        <div class="ct-macro-pill">
+                            <div class="ct-macro-name">Calories</div>
+                            <div class="ct-macro-val" style="color:var(--ct-green-dark)">@preview.CaloriesKcal.ToString("0") kcal</div>
+                        </div>
+                        <div class="ct-macro-pill">
+                            <div class="ct-macro-name">Protein</div>
+                            <div class="ct-macro-val">@preview.ProteinG.ToString("0.0")g</div>
+                        </div>
+                        <div class="ct-macro-pill">
+                            <div class="ct-macro-name">Carbs</div>
+                            <div class="ct-macro-val">@preview.CarbsG.ToString("0.0")g</div>
+                        </div>
+                        <div class="ct-macro-pill">
+                            <div class="ct-macro-name">Fat</div>
+                            <div class="ct-macro-val">@preview.FatG.ToString("0.0")g</div>
+                        </div>
+                    </div>
+                }
+
+                <button class="ct-btn ct-btn-primary" style="width:100%;"
+                        disabled="@(isQuick ? editQuickKcal <= 0 : (editTotalQty <= 0 || editServings <= 0))"
+                        @onclick="SaveEntryModalAsync">
                     @if (_isDuplicateMode)
                     {
                         <AppIcon Name="@AppIcons.Copy" Size="16" /> <span>Duplicate Item</span>
@@ -320,6 +348,8 @@ else
     private double _editInitialServingSize;
     private string _editServingSizeText = "100";
     private string _editServingsText = "1";
+    private string _editQuickCaloriesText = string.Empty;
+    private string _editQuickLabel = string.Empty;
     private string _editUnit = "g";
     private Guid _editSlotId;
     private DateOnly _editDate;
@@ -372,6 +402,8 @@ else
         _editInitialServingSize = perServing;
         _editServingSizeText = perServing.ToString("0.##", CultureInfo.InvariantCulture);
         _editServingsText = initialServings.ToString("0.##", CultureInfo.InvariantCulture);
+        _editQuickCaloriesText = entry.CaloriesKcal.ToString("0.#", CultureInfo.InvariantCulture);
+        _editQuickLabel = entry.NameSnapshot;
         _editUnit = entry.UnitLabel;
         _editDate = entry.Date;
         _editSlotId = FoodSlots.Any(s => s.Id == entry.MealSlotId)
@@ -403,16 +435,50 @@ else
         _editServingsText = e.Value?.ToString() ?? string.Empty;
     }
 
+    private void OnEditQuickCaloriesInput(ChangeEventArgs e)
+    {
+        _editQuickCaloriesText = e.Value?.ToString() ?? string.Empty;
+    }
+
     private async Task SaveEntryModalAsync()
     {
+        if (_editingEntry is null) return;
+
+        var slotName = FoodSlots.FirstOrDefault(s => s.Id == _editSlotId)?.Name ?? "Diary";
+        var targetDate = _editDate;
+
+        if (_editingEntry.IsQuickCalorieEntry)
+        {
+            var kcal = ParsePositiveNumber(_editQuickCaloriesText);
+            if (kcal <= 0) return;
+
+            var label = string.IsNullOrWhiteSpace(_editQuickLabel) ? "Quick Calories" : _editQuickLabel.Trim();
+            if (_isDuplicateMode)
+            {
+                await Diary.DuplicateQuickCaloriesAsync(_editingEntry, targetDate, _editSlotId, kcal, label);
+                _toast = targetDate == _selectedDate
+                    ? $"Duplicated \"{label}\" into {slotName}."
+                    : $"Duplicated \"{label}\" into {slotName} on {targetDate:dd MMM}.";
+            }
+            else
+            {
+                await Diary.UpdateQuickCaloriesAsync(_editingEntry, kcal, label, _editSlotId, targetDate);
+                _toast = targetDate != _selectedDate
+                    ? $"Moved \"{label}\" to {slotName} on {targetDate:dd MMM}."
+                    : "Updated logged item.";
+            }
+
+            _editingEntry = null;
+            await LoadDayAsync();
+            return;
+        }
+
         var servingSize = ParsePositiveNumber(_editServingSizeText);
         var servings = ParsePositiveNumber(_editServingsText);
         var totalQty = Math.Round(servingSize * servings, 1);
-        if (_editingEntry is null || totalQty <= 0 || servings <= 0) return;
+        if (totalQty <= 0 || servings <= 0) return;
 
-        var slotName = FoodSlots.FirstOrDefault(s => s.Id == _editSlotId)?.Name ?? "Diary";
         var itemName = _editingEntry.NameSnapshot;
-        var targetDate = _editDate;
 
         string? servingLabel;
         if (_editingEntry.MealId.HasValue && Math.Abs(servingSize - _editInitialServingSize) < 0.05)
