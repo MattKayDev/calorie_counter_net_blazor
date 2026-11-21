@@ -439,4 +439,98 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal(foodSlots[1].Id, moved.MealSlotId);
         Assert.Equal("1 large fillet", moved.ServingLabel);
     }
+
+    [Fact]
+    public async Task FoodLogging_RemembersCustomPortionsAndSupportsGramsAndMlUnits()
+    {
+        using var personalEngine = new InMemoryPersonalSqliteEngine();
+        using var foodsEngine = new InMemoryFoodsSqliteEngine();
+        var personalInit = new PersonalSqliteSchemaInitializer(personalEngine);
+        var foodsInit = new FoodsSqliteSchemaInitializer(foodsEngine, personalEngine);
+
+        var profileRepo = new SqliteUserProfileRepository(personalEngine, personalInit);
+        var slotRepo = new SqliteMealSlotRepository(personalEngine, personalInit);
+        var foodRepo = new SqliteFoodItemRepository(foodsEngine, foodsInit);
+        var logRepo = new SqliteFoodLogRepository(personalEngine, personalInit);
+        var bodyRepo = new SqliteBodyMeasurementRepository(personalEngine, personalInit);
+        var diary = new DiaryService(logRepo, bodyRepo, profileRepo);
+
+        var foodSlots = (await slotRepo.GetAllAsync()).Where(s => !s.IsWaterTracker).ToList();
+        var coffee = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Black Coffee",
+            MeasurementUnit = "ml",
+            ServingSizeG = 237,
+            ServingDescription = "1 cup (237ml)",
+            CaloriesPer100G = 2
+        });
+
+        var loadedCoffee = await foodRepo.GetByIdAsync(coffee.Id);
+        Assert.NotNull(loadedCoffee);
+        Assert.Equal("ml", loadedCoffee!.UnitLabel);
+
+        var day = new DateOnly(2026, 11, 21);
+
+        // Log custom 237ml serving
+        var first = await diary.LogFoodItemAsync(day, foodSlots[0].Id, coffee, grams: 237, unit: "ml");
+        Assert.Equal("ml", first.MeasurementUnit);
+        Assert.Equal("237ml", first.ServingLabel);
+
+        var portions1 = await logRepo.GetRecentPortionsForFoodAsync(coffee.Id);
+        Assert.Single(portions1);
+        Assert.Equal(new SavedFoodPortion(237, "ml"), portions1[0]);
+
+        // Log 350ml, then 237ml again -> deduplicated, most recently used first
+        await Task.Delay(5);
+        await diary.LogFoodItemAsync(day, foodSlots[0].Id, coffee, grams: 350, unit: "ml");
+        await Task.Delay(5);
+        await diary.LogFoodItemAsync(day, foodSlots[0].Id, coffee, grams: 237, unit: "ml");
+
+        var portions2 = await logRepo.GetRecentPortionsForFoodAsync(coffee.Id);
+        Assert.Equal(2, portions2.Count);
+        Assert.Equal(new SavedFoodPortion(237, "ml"), portions2[0]);
+        Assert.Equal(new SavedFoodPortion(350, "ml"), portions2[1]);
+
+        // Editing unit from ml -> g updates ServingLabel and MeasurementUnit
+        await diary.UpdateEntryQuantityAsync(first, newGrams: 250, foodSlots[0].Id, newUnit: "g");
+        var updatedFirst = (await logRepo.GetByDateAsync(day)).Single(e => e.Id == first.Id);
+        Assert.Equal("g", updatedFirst.MeasurementUnit);
+        Assert.Equal("250g", updatedFirst.ServingLabel);
+
+        // Duplicating with custom unit preserves target unit
+        var duplicatedMl = await diary.DuplicateEntryAsync(updatedFirst, day, foodSlots[1].Id, targetGrams: 200, targetUnit: "ml");
+        Assert.Equal("ml", duplicatedMl.MeasurementUnit);
+        Assert.Equal("200ml", duplicatedMl.ServingLabel);
+
+        // USDA parser detects ml vs g from servingSizeUnit
+        const string usdaJson = """
+            {
+              "foods": [
+                {
+                  "fdcId": 1001,
+                  "description": "Brewed Coffee",
+                  "servingSize": 237.0,
+                  "servingSizeUnit": "ml",
+                  "foodNutrients": [
+                    { "nutrientId": 1008, "nutrientNumber": "208", "unitName": "KCAL", "value": 1 }
+                  ]
+                },
+                {
+                  "fdcId": 1002,
+                  "description": "Apple",
+                  "servingSize": 182.0,
+                  "servingSizeUnit": "g",
+                  "foodNutrients": [
+                    { "nutrientId": 1008, "nutrientNumber": "208", "unitName": "KCAL", "value": 52 }
+                  ]
+                }
+              ]
+            }
+            """;
+        using var doc = System.Text.Json.JsonDocument.Parse(usdaJson);
+        var parsed = OpenFoodFactsClient.ParseUsdaResponse(doc.RootElement);
+        Assert.Equal(2, parsed.Count);
+        Assert.Equal("ml", parsed[0].MeasurementUnit);
+        Assert.Equal("g", parsed[1].MeasurementUnit);
+    }
 }

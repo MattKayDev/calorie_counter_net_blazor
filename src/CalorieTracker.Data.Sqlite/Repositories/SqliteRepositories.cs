@@ -251,10 +251,10 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
         item.UpdatedAtUtc = DateTime.UtcNow;
         await _engine.ExecuteAsync("""
             INSERT INTO FoodItems (
-                Id, Name, Brand, Barcode, ExternalId, Source, ServingSizeG, ServingDescription,
+                Id, Name, Brand, Barcode, ExternalId, Source, ServingSizeG, ServingDescription, MeasurementUnit,
                 CaloriesPer100G, FatPer100G, SaturatedFatPer100G, CarbsPer100G, SugarsPer100G,
                 FibrePer100G, ProteinPer100G, SaltPer100G, IsDeleted, UpdatedAtUtc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(Id) DO UPDATE SET
                 Name = excluded.Name,
                 Brand = excluded.Brand,
@@ -263,6 +263,7 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
                 Source = excluded.Source,
                 ServingSizeG = excluded.ServingSizeG,
                 ServingDescription = excluded.ServingDescription,
+                MeasurementUnit = excluded.MeasurementUnit,
                 CaloriesPer100G = excluded.CaloriesPer100G,
                 FatPer100G = excluded.FatPer100G,
                 SaturatedFatPer100G = excluded.SaturatedFatPer100G,
@@ -277,7 +278,7 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
             new object?[]
             {
                 item.Id.ToString(), item.Name.Trim(), item.Brand?.Trim(), item.Barcode?.Trim(),
-                item.ExternalId?.Trim(), (int)item.Source, item.ServingSizeG, item.ServingDescription,
+                item.ExternalId?.Trim(), (int)item.Source, item.ServingSizeG, item.ServingDescription, item.UnitLabel,
                 item.CaloriesPer100G, item.FatPer100G, item.SaturatedFatPer100G, item.CarbsPer100G,
                 item.SugarsPer100G, item.FibrePer100G, item.ProteinPer100G, item.SaltPer100G,
                 item.IsDeleted ? 1 : 0, item.UpdatedAtUtc.ToString("O")
@@ -314,6 +315,7 @@ public sealed class SqliteFoodItemRepository : IFoodItemRepository
         Source = (FoodSource)RowReader.GetInt(r, "Source"),
         ServingSizeG = RowReader.GetDouble(r, "ServingSizeG", 100),
         ServingDescription = RowReader.GetString(r, "ServingDescription", "100g"),
+        MeasurementUnit = FoodItem.NormalizeUnit(RowReader.GetString(r, "MeasurementUnit", "g")),
         CaloriesPer100G = RowReader.GetDouble(r, "CaloriesPer100G"),
         FatPer100G = RowReader.GetDouble(r, "FatPer100G"),
         SaturatedFatPer100G = RowReader.GetDouble(r, "SaturatedFatPer100G"),
@@ -505,6 +507,32 @@ public sealed class SqliteFoodLogRepository : IFoodLogRepository
         return result;
     }
 
+    public async Task<List<SavedFoodPortion>> GetRecentPortionsForFoodAsync(Guid foodItemId, int limit = 4, CancellationToken ct = default)
+    {
+        await _init.EnsureCreatedAsync(ct);
+        var rows = await _engine.QueryAsync("""
+            SELECT ROUND(QuantityGrams, 1) AS Qty, MeasurementUnit, MAX(LoggedAtUtc) AS LastUsed
+            FROM FoodLogEntries
+            WHERE FoodItemId = ? AND IsDeleted = 0 AND QuantityGrams > 0
+            GROUP BY ROUND(QuantityGrams, 1), MeasurementUnit
+            ORDER BY MAX(LoggedAtUtc) DESC
+            LIMIT ?;
+            """,
+            new object?[] { foodItemId.ToString(), limit },
+            ct);
+
+        var list = new List<SavedFoodPortion>();
+        foreach (var r in rows)
+        {
+            var qty = RowReader.GetDouble(r, "Qty");
+            if (qty > 0)
+            {
+                list.Add(new SavedFoodPortion(qty, FoodItem.NormalizeUnit(RowReader.GetString(r, "MeasurementUnit", "g"))));
+            }
+        }
+        return list;
+    }
+
     public async Task SaveAsync(FoodLogEntry entry, CancellationToken ct = default)
     {
         await _init.EnsureCreatedAsync(ct);
@@ -512,15 +540,16 @@ public sealed class SqliteFoodLogRepository : IFoodLogRepository
         await _engine.ExecuteAsync("""
             INSERT INTO FoodLogEntries (
                 Id, Date, MealSlotId, FoodItemId, MealId, NameSnapshot, BrandSnapshot,
-                QuantityGrams, Servings, ServingLabel, CaloriesKcal, FatG, SaturatedFatG,
+                QuantityGrams, Servings, ServingLabel, MeasurementUnit, CaloriesKcal, FatG, SaturatedFatG,
                 CarbsG, SugarsG, FibreG, ProteinG, SaltG, IsDeleted, LoggedAtUtc, UpdatedAtUtc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(Id) DO UPDATE SET
                 Date = excluded.Date,
                 MealSlotId = excluded.MealSlotId,
                 QuantityGrams = excluded.QuantityGrams,
                 Servings = excluded.Servings,
                 ServingLabel = excluded.ServingLabel,
+                MeasurementUnit = excluded.MeasurementUnit,
                 CaloriesKcal = excluded.CaloriesKcal,
                 FatG = excluded.FatG,
                 SaturatedFatG = excluded.SaturatedFatG,
@@ -536,7 +565,7 @@ public sealed class SqliteFoodLogRepository : IFoodLogRepository
             {
                 entry.Id.ToString(), entry.Date.ToString("yyyy-MM-dd"), entry.MealSlotId.ToString(),
                 entry.FoodItemId?.ToString(), entry.MealId?.ToString(), entry.NameSnapshot, entry.BrandSnapshot,
-                entry.QuantityGrams, entry.Servings, entry.ServingLabel, entry.CaloriesKcal, entry.FatG,
+                entry.QuantityGrams, entry.Servings, entry.ServingLabel, entry.UnitLabel, entry.CaloriesKcal, entry.FatG,
                 entry.SaturatedFatG, entry.CarbsG, entry.SugarsG, entry.FibreG, entry.ProteinG, entry.SaltG,
                 entry.IsDeleted ? 1 : 0, entry.LoggedAtUtc.ToString("O"), entry.UpdatedAtUtc.ToString("O")
             },
@@ -564,6 +593,7 @@ public sealed class SqliteFoodLogRepository : IFoodLogRepository
         QuantityGrams = RowReader.GetDouble(r, "QuantityGrams"),
         Servings = RowReader.GetDouble(r, "Servings", 1),
         ServingLabel = RowReader.GetString(r, "ServingLabel", "100g"),
+        MeasurementUnit = FoodItem.NormalizeUnit(RowReader.GetString(r, "MeasurementUnit", "g")),
         CaloriesKcal = RowReader.GetDouble(r, "CaloriesKcal"),
         FatG = RowReader.GetDouble(r, "FatG"),
         SaturatedFatG = RowReader.GetDouble(r, "SaturatedFatG"),

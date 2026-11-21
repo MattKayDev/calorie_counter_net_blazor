@@ -57,6 +57,12 @@ public sealed class FoodItem
     public FoodSource Source { get; set; } = FoodSource.Custom;
     public double ServingSizeG { get; set; } = 100;
     public string ServingDescription { get; set; } = "100g";
+    public string MeasurementUnit { get; set; } = "g";
+
+    public string UnitLabel => NormalizeUnit(MeasurementUnit);
+
+    public static string NormalizeUnit(string? unit) =>
+        string.Equals(unit?.Trim(), "ml", StringComparison.OrdinalIgnoreCase) ? "ml" : "g";
 
     // Nutrients per 100g
     public double CaloriesPer100G { get; set; }
@@ -155,6 +161,9 @@ public sealed class FoodLogEntry
     public double QuantityGrams { get; set; }
     public double Servings { get; set; } = 1;
     public string ServingLabel { get; set; } = "100g";
+    public string MeasurementUnit { get; set; } = "g";
+
+    public string UnitLabel => FoodItem.NormalizeUnit(MeasurementUnit);
 
     public double CaloriesKcal { get; set; }
     public double FatG { get; set; }
@@ -200,3 +209,5 @@ public sealed class BodyMeasurement
 
     public double? EffectiveBodyFatPercent => ManualBodyFatPercent ?? ComputedBodyFatPercent;
 }
+
+public sealed record SavedFoodPortion(double Quantity, string Unit);

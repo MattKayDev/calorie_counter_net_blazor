@@ -87,7 +87,7 @@
                                 </div>
                                 <div class="ct-entry-meta">
                                     @(string.IsNullOrWhiteSpace(f.Brand) ? "No brand" : f.Brand)
-                                    • @f.CaloriesPer100G.ToString("0") kcal / 100g
+                                    • @f.CaloriesPer100G.ToString("0") kcal / 100@f.UnitLabel
                                     • P @f.ProteinPer100G.ToString("0.#")g • C @f.CarbsPer100G.ToString("0.#")g • F @f.FatPer100G.ToString("0.#")g
                                 </div>
                             </div>
@@ -163,18 +163,25 @@
                         <input class="ct-input" placeholder="EAN / UPC" @bind="_editFood.Barcode" />
                     </div>
                 </div>
+                <div class="ct-field">
+                    <label class="ct-label">Unit</label>
+                    <div class="ct-tabs">
+                        <button type="button" class="ct-tab @(_editFood.UnitLabel == "g" ? "active" : "")" @onclick='() => SetCustomFoodUnit("g")'>Grams (g)</button>
+                        <button type="button" class="ct-tab @(_editFood.UnitLabel == "ml" ? "active" : "")" @onclick='() => SetCustomFoodUnit("ml")'>Millilitres (ml)</button>
+                    </div>
+                </div>
                 <div class="ct-grid-2">
                     <div class="ct-field">
-                        <label class="ct-label">Serving Size (g)</label>
+                        <label class="ct-label">Serving Size (@_editFood.UnitLabel)</label>
                         <input class="ct-input" type="number" step="1" @bind="_editFood.ServingSizeG" />
                     </div>
                     <div class="ct-field">
                         <label class="ct-label">Serving Label</label>
-                        <input class="ct-input" placeholder="e.g. 1 pot (150g)" @bind="_editFood.ServingDescription" />
+                        <input class="ct-input" placeholder='e.g. 1 cup (237@_editFood.UnitLabel)' @bind="_editFood.ServingDescription" />
                     </div>
                 </div>
 
-                <div style="font-weight:700; font-size:0.86rem; margin:10px 0 8px;">Nutrients per 100g</div>
+                <div style="font-weight:700; font-size:0.86rem; margin:10px 0 8px;">Nutrients per 100@_editFood.UnitLabel</div>
                 <div class="ct-grid-2">
                     <div class="ct-field">
                         <label class="ct-label">Calories (kcal)</label>
@@ -245,7 +252,7 @@
                         <option value="">-- Choose a food --</option>
                         @foreach (var f in _allLocalFoods)
                         {
-                            <option value="@f.Id">@f.Name (@f.CaloriesPer100G.ToString("0") kcal/100g)</option>
+                            <option value="@f.Id">@f.Name (@f.CaloriesPer100G.ToString("0") kcal/100@f.UnitLabel)</option>
                         }
                     </select>
                     <input class="ct-input" style="width:92px;" type="number" min="1" @bind="_ingredientGrams" placeholder="g" />
@@ -421,9 +428,21 @@
         }
     }
 
+    private void SetCustomFoodUnit(string unit)
+    {
+        var normalized = FoodItem.NormalizeUnit(unit);
+        _editFood.MeasurementUnit = normalized;
+        if (string.IsNullOrWhiteSpace(_editFood.ServingDescription)
+            || _editFood.ServingDescription.Equals("100g", StringComparison.OrdinalIgnoreCase)
+            || _editFood.ServingDescription.Equals("100ml", StringComparison.OrdinalIgnoreCase))
+        {
+            _editFood.ServingDescription = $"100{normalized}";
+        }
+    }
+
     private void OpenNewFoodModal()
     {
-        _editFood = new FoodItem { Source = FoodSource.Custom, ServingSizeG = 100, ServingDescription = "100g" };
+        _editFood = new FoodItem { Source = FoodSource.Custom, ServingSizeG = 100, ServingDescription = "100g", MeasurementUnit = "g" };
         _foodModalOpen = true;
     }
 

@@ -202,18 +202,26 @@ else
 
                 <div class="ct-grid-2">
                     <div class="ct-field">
-                        <label class="ct-label">Quantity (grams)</label>
+                        <label class="ct-label">Quantity (@_editUnit)</label>
                         <input class="ct-input" type="number" inputmode="decimal" step="1" min="1" @bind="_editGrams" @bind:event="oninput" />
                     </div>
                     <div class="ct-field">
-                        <label class="ct-label">Meal Time</label>
-                        <select class="ct-select" @bind="_editSlotId">
-                            @foreach (var s in FoodSlots)
-                            {
-                                <option value="@s.Id">@s.Name</option>
-                            }
-                        </select>
+                        <label class="ct-label">Unit</label>
+                        <div class="ct-tabs">
+                            <button type="button" class="ct-tab @(_editUnit == "g" ? "active" : "")" @onclick='() => _editUnit = "g"'>g</button>
+                            <button type="button" class="ct-tab @(_editUnit == "ml" ? "active" : "")" @onclick='() => _editUnit = "ml"'>ml</button>
+                        </div>
                     </div>
+                </div>
+
+                <div class="ct-field">
+                    <label class="ct-label">Meal Time</label>
+                    <select class="ct-select" @bind="_editSlotId">
+                        @foreach (var s in FoodSlots)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
                 </div>
 
                 <div class="ct-field">
@@ -315,6 +323,7 @@ else
 
     private FoodLogEntry? _editingEntry;
     private double _editGrams;
+    private string _editUnit = "g";
     private Guid _editSlotId;
     private DateOnly _editDate;
     private bool _isDuplicateMode;
@@ -356,6 +365,7 @@ else
         _editingEntry = entry;
         _isDuplicateMode = duplicate;
         _editGrams = entry.QuantityGrams > 0 ? entry.QuantityGrams : 100;
+        _editUnit = entry.UnitLabel;
         _editDate = entry.Date;
         _editSlotId = FoodSlots.Any(s => s.Id == entry.MealSlotId)
             ? entry.MealSlotId
@@ -372,14 +382,14 @@ else
 
         if (_isDuplicateMode)
         {
-            await Diary.DuplicateEntryAsync(_editingEntry, targetDate, _editSlotId, _editGrams);
+            await Diary.DuplicateEntryAsync(_editingEntry, targetDate, _editSlotId, _editGrams, _editUnit);
             _toast = targetDate == _selectedDate
                 ? $"Duplicated \"{itemName}\" into {slotName}."
                 : $"Duplicated \"{itemName}\" into {slotName} on {targetDate:dd MMM}.";
         }
         else
         {
-            await Diary.UpdateEntryQuantityAsync(_editingEntry, _editGrams, _editSlotId, targetDate);
+            await Diary.UpdateEntryQuantityAsync(_editingEntry, _editGrams, _editSlotId, targetDate, _editUnit);
             _toast = targetDate != _selectedDate
                 ? $"Moved \"{itemName}\" to {slotName} on {targetDate:dd MMM}."
                 : "Updated logged item.";

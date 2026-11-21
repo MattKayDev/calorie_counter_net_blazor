@@ -1,4 +1,5 @@
 @inject IFoodLookupService FoodLookup
+@inject IFoodLogRepository LogRepo
 @inject IMealRepository MealRepo
 @inject DiaryService Diary
 @implements IDisposable
@@ -38,17 +39,52 @@
                             }
                             <div style="margin-top:10px;" class="ct-grid-2">
                                 <div class="ct-field">
-                                    <label class="ct-label">Quantity (grams)</label>
-                                    <input class="ct-input" type="number" step="1" min="1" @bind="_grams" @bind:event="oninput" />
+                                    <label class="ct-label">Quantity (@_unit)</label>
+                                    <input class="ct-input" type="number" inputmode="decimal" step="1" min="1" @bind="_grams" @bind:event="oninput" />
                                 </div>
                                 <div class="ct-field">
-                                    <label class="ct-label">Quick portion</label>
-                                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                                        <button class="ct-btn ct-btn-soft ct-btn-sm" @onclick="() => _grams = _selectedFood.ServingSizeG">
-                                            1 srv (@_selectedFood.ServingSizeG.ToString("0")g)
-                                        </button>
-                                        <button class="ct-btn ct-btn-outline ct-btn-sm" @onclick="() => _grams = 100">100g</button>
+                                    <label class="ct-label">Unit</label>
+                                    <div class="ct-tabs">
+                                        <button type="button" class="ct-tab @(_unit == "g" ? "active" : "")" @onclick='() => _unit = "g"'>g</button>
+                                        <button type="button" class="ct-tab @(_unit == "ml" ? "active" : "")" @onclick='() => _unit = "ml"'>ml</button>
                                     </div>
+                                </div>
+                            </div>
+
+                            @{
+                                var hasDefaultSrv = _selectedFood.ServingSizeG > 0 && Math.Abs(_selectedFood.ServingSizeG - 100) >= 0.05;
+                                var recentChips = _recentPortions
+                                    .Where(p =>
+                                        !(hasDefaultSrv && Math.Abs(p.Quantity - _selectedFood.ServingSizeG) < 0.05 && string.Equals(p.Unit, _selectedFood.UnitLabel, StringComparison.OrdinalIgnoreCase))
+                                        && !(Math.Abs(p.Quantity - 100) < 0.05 && string.Equals(p.Unit, _unit, StringComparison.OrdinalIgnoreCase)))
+                                    .ToList();
+                            }
+                            <div class="ct-field" style="margin-top:2px;">
+                                <label class="ct-label">Quick portion</label>
+                                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                    @foreach (var p in recentChips)
+                                    {
+                                        var isActive = Math.Abs(_grams - p.Quantity) < 0.05 && string.Equals(_unit, p.Unit, StringComparison.OrdinalIgnoreCase);
+                                        <button type="button"
+                                                class="ct-btn ct-btn-sm @(isActive ? "ct-btn-soft" : "ct-btn-outline")"
+                                                @onclick="() => ApplyPortion(p.Quantity, p.Unit)">
+                                            @($"{p.Quantity:0.#}{p.Unit}")
+                                        </button>
+                                    }
+                                    @if (hasDefaultSrv)
+                                    {
+                                        var isSrvActive = Math.Abs(_grams - _selectedFood.ServingSizeG) < 0.05 && string.Equals(_unit, _selectedFood.UnitLabel, StringComparison.OrdinalIgnoreCase);
+                                        <button type="button"
+                                                class="ct-btn ct-btn-sm @(isSrvActive ? "ct-btn-soft" : "ct-btn-outline")"
+                                                @onclick="() => ApplyPortion(_selectedFood.ServingSizeG, _selectedFood.UnitLabel)">
+                                            1 srv (@_selectedFood.ServingSizeG.ToString("0.#")@_selectedFood.UnitLabel)
+                                        </button>
+                                    }
+                                    <button type="button"
+                                            class="ct-btn ct-btn-sm @(Math.Abs(_grams - 100) < 0.05 ? "ct-btn-soft" : "ct-btn-outline")"
+                                            @onclick="() => ApplyPortion(100, _unit)">
+                                        @($"100{_unit}")
+                                    </button>
                                 </div>
                             </div>
 
@@ -79,7 +115,7 @@
                         </div>
 
                         <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:12px;" @onclick="ConfirmLogFoodAsync">
-                            Add @_grams.ToString("0")g to @ActiveSlotName
+                            Add @($"{_grams:0.#}{_unit}") to @ActiveSlotName
                         </button>
                     </div>
                 }
@@ -141,12 +177,12 @@
                                 @foreach (var item in _results)
                                 {
                                     <div class="ct-entry-row" style="background:var(--ct-surface-muted); border-radius:12px; cursor:pointer;"
-                                         @onclick="() => SelectFood(item)">
+                                         @onclick="() => SelectFoodAsync(item)">
                                         <div>
                                             <div class="ct-entry-name">@item.Name</div>
                                             <div class="ct-entry-meta">
                                                 @(string.IsNullOrWhiteSpace(item.Brand) ? (item.Source == FoodSource.Custom ? "Custom food" : "Cached") : item.Brand)
-                                                • @item.CaloriesPer100G.ToString("0") kcal / 100g
+                                                • @item.CaloriesPer100G.ToString("0") kcal / 100@item.UnitLabel
                                             </div>
                                         </div>
                                         <span class="ct-badge ct-badge-green">Select</span>
@@ -213,7 +249,9 @@
     private List<FoodItem> _results = new();
     private List<Meal> _meals = new();
     private FoodItem? _selectedFood;
+    private List<SavedFoodPortion> _recentPortions = new();
     private double _grams = 100;
+    private string _unit = "g";
     private bool _isSearching;
     private bool _isLookingUpBarcode;
     private string _loadingText = "Searching...";
@@ -236,6 +274,9 @@
                 ? MealSlotId
                 : (MealSlots.FirstOrDefault()?.Id ?? Guid.Empty);
             _selectedFood = null;
+            _recentPortions.Clear();
+            _grams = 100;
+            _unit = "g";
             _statusMessage = null;
             _searchQuery = string.Empty;
             _isLookingUpBarcode = false;
@@ -338,7 +379,7 @@
                 _statusMessage = lookup.FoundLocally
                     ? $"Found in local database ({barcode})."
                     : $"Found online and saved locally ({barcode}).";
-                SelectFood(lookup.Item);
+                await SelectFoodAsync(lookup.Item);
             }
             else
             {
@@ -352,16 +393,32 @@
         }
     }
 
-    private void SelectFood(FoodItem item)
+    private async Task SelectFoodAsync(FoodItem item)
     {
         _selectedFood = item;
-        _grams = item.ServingSizeG > 0 ? item.ServingSizeG : 100;
+        _recentPortions = await LogRepo.GetRecentPortionsForFoodAsync(item.Id, 4);
+        if (_recentPortions.Count > 0)
+        {
+            _grams = _recentPortions[0].Quantity;
+            _unit = _recentPortions[0].Unit;
+        }
+        else
+        {
+            _grams = item.ServingSizeG > 0 ? item.ServingSizeG : 100;
+            _unit = item.UnitLabel;
+        }
+    }
+
+    private void ApplyPortion(double quantity, string unit)
+    {
+        _grams = quantity;
+        _unit = FoodItem.NormalizeUnit(unit);
     }
 
     private async Task ConfirmLogFoodAsync()
     {
         if (_selectedFood is null || _grams <= 0 || _selectedSlotId == Guid.Empty) return;
-        await Diary.LogFoodItemAsync(Date, _selectedSlotId, _selectedFood, _grams);
+        await Diary.LogFoodItemAsync(Date, _selectedSlotId, _selectedFood, _grams, unit: _unit);
         await OnLogged.InvokeAsync();
         await Close();
     }

@@ -97,6 +97,7 @@ public sealed class PersonalSqliteSchemaInitializer
                 QuantityGrams REAL NOT NULL,
                 Servings REAL NOT NULL DEFAULT 1,
                 ServingLabel TEXT NOT NULL DEFAULT '100g',
+                MeasurementUnit TEXT NOT NULL DEFAULT 'g',
                 CaloriesKcal REAL NOT NULL,
                 FatG REAL NOT NULL,
                 SaturatedFatG REAL NOT NULL,
@@ -112,6 +113,7 @@ public sealed class PersonalSqliteSchemaInitializer
             """, null, ct);
 
         await _engine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodLogEntries_Date ON FoodLogEntries(Date);", null, ct);
+        await _engine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodLogEntries_FoodItemId ON FoodLogEntries(FoodItemId);", null, ct);
 
         await _engine.ExecuteAsync("""
             CREATE TABLE IF NOT EXISTS BodyMeasurements (
@@ -149,6 +151,7 @@ public sealed class PersonalSqliteSchemaInitializer
         await EnsureColumnAsync("UserProfiles", "DailyWaterGoalMl", "INTEGER NOT NULL DEFAULT 2000", ct);
         await EnsureColumnAsync("UserProfiles", "ThemeMode", "INTEGER NOT NULL DEFAULT 0", ct);
         await EnsureColumnAsync("UserProfiles", "ColorScheme", "INTEGER NOT NULL DEFAULT 0", ct);
+        await EnsureColumnAsync("FoodLogEntries", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
         // Seed default meal slots if none exist
         var existingSlots = await _engine.QueryAsync("SELECT COUNT(*) AS Cnt FROM MealSlots;", null, ct);
@@ -228,6 +231,7 @@ public sealed class FoodsSqliteSchemaInitializer
                 Source INTEGER NOT NULL DEFAULT 0,
                 ServingSizeG REAL NOT NULL DEFAULT 100,
                 ServingDescription TEXT NOT NULL DEFAULT '100g',
+                MeasurementUnit TEXT NOT NULL DEFAULT 'g',
                 CaloriesPer100G REAL NOT NULL DEFAULT 0,
                 FatPer100G REAL NOT NULL DEFAULT 0,
                 SaturatedFatPer100G REAL NOT NULL DEFAULT 0,
@@ -244,6 +248,7 @@ public sealed class FoodsSqliteSchemaInitializer
         await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_Barcode ON FoodItems(Barcode);", null, ct);
         await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_Name ON FoodItems(Name);", null, ct);
         await _foodsEngine.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_FoodItems_ExternalId ON FoodItems(ExternalId);", null, ct);
+        await EnsureColumnAsync("FoodItems", "MeasurementUnit", "TEXT NOT NULL DEFAULT 'g'", ct);
 
         // One-time migration: if a legacy single-DB personal.sqlite still has a FoodItems table,
         // copy those food items cleanly into foods.sqlite and drop the legacy table from personal.sqlite.
@@ -300,6 +305,16 @@ public sealed class FoodsSqliteSchemaInitializer
         catch
         {
             // Non-fatal if personal DB doesn't exist or has no legacy table
+        }
+    }
+
+    private async Task EnsureColumnAsync(string table, string column, string definition, CancellationToken ct)
+    {
+        var cols = await _foodsEngine.QueryAsync($"PRAGMA table_info({table});", null, ct);
+        var exists = cols.Any(c => string.Equals(RowReader.GetString(c, "name"), column, StringComparison.OrdinalIgnoreCase));
+        if (!exists)
+        {
+            await _foodsEngine.ExecuteAsync($"ALTER TABLE {table} ADD COLUMN {column} {definition};", null, ct);
         }
     }
 

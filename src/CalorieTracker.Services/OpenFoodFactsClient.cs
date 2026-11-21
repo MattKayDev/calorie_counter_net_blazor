@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using CalorieTracker.Domain.Enums;
 using CalorieTracker.Domain.Models;
 
@@ -20,7 +21,10 @@ public interface IOpenFoodFactsClient
 public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
 {
     private readonly HttpClient _http;
-    private const string OffFields = "code,product_name,brands,serving_size,serving_quantity,nutriments";
+    private const string OffFields = "code,product_name,brands,quantity,serving_size,serving_quantity,serving_quantity_unit,nutriments";
+    private static readonly Regex LiquidUnitRegex = new(
+        @"(?:\b\d+(?:\.\d+)?\s*(?:ml|cl|l|fl\.?\s*oz)\b|\b(?:ml|mlt|fl\.?\s*oz|millilit(?:er|re)|lit(?:er|re))s?\b)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public OpenFoodFactsClient(HttpClient http)
     {
@@ -174,7 +178,8 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
             var servingSize = GetDouble(f, "servingSize");
             if (servingSize <= 0) servingSize = 100;
             var servingDesc = GetString(f, "householdServingFullText");
-            if (string.IsNullOrWhiteSpace(servingDesc)) servingDesc = $"{servingSize:0}g";
+            var detectedUnit = DetectMeasurementUnit(GetString(f, "servingSizeUnit"), servingDesc);
+            if (string.IsNullOrWhiteSpace(servingDesc)) servingDesc = $"{servingSize:0}{detectedUnit}";
 
             double kcal = 0, protein = 0, fat = 0, satFat = 0, carbs = 0, sugars = 0, fibre = 0, sodiumMg = 0;
 
@@ -219,6 +224,7 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
                 Source = FoodSource.OpenFoodFacts,
                 ServingSizeG = Math.Round(servingSize, 1),
                 ServingDescription = servingDesc.Trim(),
+                MeasurementUnit = detectedUnit,
                 CaloriesPer100G = Math.Round(kcal, 1),
                 FatPer100G = Math.Round(fat, 2),
                 SaturatedFatPer100G = Math.Round(satFat, 2),
@@ -258,8 +264,9 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
 
         var servingQty = GetDouble(prod, "serving_quantity");
         var servingDesc = GetString(prod, "serving_size");
+        var unit = DetectMeasurementUnit(GetString(prod, "serving_quantity_unit"), servingDesc, GetString(prod, "quantity"));
         if (servingQty <= 0) servingQty = 100;
-        if (string.IsNullOrWhiteSpace(servingDesc)) servingDesc = $"{servingQty:0}g";
+        if (string.IsNullOrWhiteSpace(servingDesc)) servingDesc = $"{servingQty:0}{unit}";
 
         double kcal = 0, fat = 0, satFat = 0, carbs = 0, sugars = 0, fibre = 0, protein = 0, salt = 0;
         var hasNutriments = false;
@@ -302,6 +309,7 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
             Source = FoodSource.OpenFoodFacts,
             ServingSizeG = Math.Round(servingQty, 1),
             ServingDescription = servingDesc.Trim(),
+            MeasurementUnit = unit,
             CaloriesPer100G = Math.Round(kcal, 1),
             FatPer100G = Math.Round(fat, 2),
             SaturatedFatPer100G = Math.Round(satFat, 2),
@@ -311,6 +319,24 @@ public sealed class OpenFoodFactsClient : IOpenFoodFactsClient
             ProteinPer100G = Math.Round(protein, 2),
             SaltPer100G = Math.Round(salt, 3)
         };
+    }
+
+    private static string DetectMeasurementUnit(string? unitHint, string? servingDesc, string? quantityText = null)
+    {
+        if (!string.IsNullOrWhiteSpace(unitHint))
+        {
+            var normalizedHint = unitHint.Trim().ToLowerInvariant();
+            if (normalizedHint is "ml" or "mlt" or "cl" or "l" or "fl oz" or "fl. oz")
+                return "ml";
+        }
+
+        if ((!string.IsNullOrWhiteSpace(servingDesc) && LiquidUnitRegex.IsMatch(servingDesc))
+            || (!string.IsNullOrWhiteSpace(quantityText) && LiquidUnitRegex.IsMatch(quantityText)))
+        {
+            return "ml";
+        }
+
+        return "g";
     }
 
     private static bool IsJson(HttpResponseMessage resp)

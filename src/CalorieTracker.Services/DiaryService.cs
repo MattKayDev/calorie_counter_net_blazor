@@ -63,8 +63,11 @@ public sealed class DiaryService
         FoodItem item,
         double grams,
         string? servingLabel = null,
+        string? unit = null,
         CancellationToken ct = default)
     {
+        var normalizedUnit = FoodItem.NormalizeUnit(unit ?? item.MeasurementUnit);
+        var roundedGrams = Math.Round(grams, 1);
         var nutrients = item.NutrientsForGrams(grams);
         var entry = new FoodLogEntry
         {
@@ -74,9 +77,10 @@ public sealed class DiaryService
             FoodItemId = item.Id,
             NameSnapshot = item.Name,
             BrandSnapshot = item.Brand,
-            QuantityGrams = Math.Round(grams, 1),
+            QuantityGrams = roundedGrams,
             Servings = item.ServingSizeG > 0 ? Math.Round(grams / item.ServingSizeG, 2) : 1,
-            ServingLabel = servingLabel ?? $"{grams:0.#}g",
+            ServingLabel = servingLabel ?? $"{roundedGrams:0.#}{normalizedUnit}",
+            MeasurementUnit = normalizedUnit,
             CaloriesKcal = nutrients.CaloriesKcal,
             FatG = nutrients.FatG,
             SaturatedFatG = nutrients.SaturatedFatG,
@@ -158,6 +162,7 @@ public sealed class DiaryService
         double newGrams,
         Guid newMealSlotId,
         DateOnly? newDate = null,
+        string? newUnit = null,
         CancellationToken ct = default)
     {
         if (newGrams <= 0) return entry;
@@ -166,7 +171,7 @@ public sealed class DiaryService
             entry.Date = newDate.Value;
         entry.MealSlotId = newMealSlotId;
 
-        ApplyScaledQuantity(entry, entry, newGrams);
+        ApplyScaledQuantity(entry, entry, newGrams, newUnit);
 
         await _logRepo.SaveAsync(entry, ct);
         return entry;
@@ -177,6 +182,7 @@ public sealed class DiaryService
         DateOnly targetDate,
         Guid targetMealSlotId,
         double targetGrams,
+        string? targetUnit = null,
         CancellationToken ct = default)
     {
         var effectiveGrams = targetGrams > 0 ? targetGrams : (source.QuantityGrams > 0 ? source.QuantityGrams : 100);
@@ -192,14 +198,16 @@ public sealed class DiaryService
             LoggedAtUtc = DateTime.UtcNow
         };
 
-        ApplyScaledQuantity(copy, source, effectiveGrams);
+        ApplyScaledQuantity(copy, source, effectiveGrams, targetUnit);
 
         await _logRepo.SaveAsync(copy, ct);
         return copy;
     }
 
-    private static void ApplyScaledQuantity(FoodLogEntry target, FoodLogEntry source, double targetGrams)
+    private static void ApplyScaledQuantity(FoodLogEntry target, FoodLogEntry source, double targetGrams, string? targetUnit)
     {
+        var normalizedUnit = FoodItem.NormalizeUnit(targetUnit ?? source.MeasurementUnit);
+        var unitChanged = !string.Equals(source.UnitLabel, normalizedUnit, StringComparison.OrdinalIgnoreCase);
         var quantityChanged = source.QuantityGrams > 0 && Math.Abs(targetGrams - source.QuantityGrams) >= 0.05;
         var ratio = quantityChanged ? targetGrams / source.QuantityGrams : 1.0;
         var scaled = quantityChanged ? source.Nutrients.Scale(ratio) : source.Nutrients;
@@ -207,7 +215,8 @@ public sealed class DiaryService
 
         target.QuantityGrams = roundedGrams;
         target.Servings = quantityChanged ? Math.Round(source.Servings * ratio, 2) : source.Servings;
-        target.ServingLabel = quantityChanged ? $"{roundedGrams:0.#}g" : source.ServingLabel;
+        target.MeasurementUnit = normalizedUnit;
+        target.ServingLabel = (quantityChanged || unitChanged) ? $"{roundedGrams:0.#}{normalizedUnit}" : source.ServingLabel;
         target.CaloriesKcal = scaled.CaloriesKcal;
         target.FatG = scaled.FatG;
         target.SaturatedFatG = scaled.SaturatedFatG;
@@ -242,6 +251,7 @@ public sealed class DiaryService
                 QuantityGrams = src.QuantityGrams,
                 Servings = src.Servings,
                 ServingLabel = src.ServingLabel,
+                MeasurementUnit = src.UnitLabel,
                 CaloriesKcal = src.CaloriesKcal,
                 FatG = src.FatG,
                 SaturatedFatG = src.SaturatedFatG,

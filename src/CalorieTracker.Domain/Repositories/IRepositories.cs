@@ -39,6 +39,7 @@ public interface IFoodLogRepository
     Task<List<FoodLogEntry>> GetByDateAsync(DateOnly date, CancellationToken ct = default);
     Task<List<FoodLogEntry>> GetByDateRangeAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     Task<Dictionary<DateOnly, double>> GetDailyCalorieTotalsAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
+    Task<List<SavedFoodPortion>> GetRecentPortionsForFoodAsync(Guid foodItemId, int limit = 4, CancellationToken ct = default);
     Task SaveAsync(FoodLogEntry entry, CancellationToken ct = default);
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
 }
