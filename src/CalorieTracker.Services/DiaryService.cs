@@ -77,6 +77,7 @@ public sealed class DiaryService
         double grams,
         string? servingLabel = null,
         string? unit = null,
+        double? servings = null,
         CancellationToken ct = default)
     {
         var normalizedUnit = FoodItem.NormalizeUnit(unit ?? item.MeasurementUnit);
@@ -91,7 +92,7 @@ public sealed class DiaryService
             NameSnapshot = item.Name,
             BrandSnapshot = item.Brand,
             QuantityGrams = roundedGrams,
-            Servings = item.ServingSizeG > 0 ? Math.Round(grams / item.ServingSizeG, 2) : 1,
+            Servings = servings is > 0 ? Math.Round(servings.Value, 2) : (item.ServingSizeG > 0 ? Math.Round(grams / item.ServingSizeG, 2) : 1),
             ServingLabel = servingLabel ?? $"{roundedGrams:0.#}{normalizedUnit}",
             MeasurementUnit = normalizedUnit,
             CaloriesKcal = nutrients.CaloriesKcal,

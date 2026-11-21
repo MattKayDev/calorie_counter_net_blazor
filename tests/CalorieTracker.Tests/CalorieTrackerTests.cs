@@ -522,6 +522,28 @@ public class SqliteRepositoryAndLookupTests
         Assert.Equal("ml", duplicatedMl.MeasurementUnit);
         Assert.Equal("200ml", duplicatedMl.ServingLabel);
 
+        // Logging multiple servings (e.g. 5 × 48g bar) stores explicit servings, total grams, descriptive label, and 5x nutrients
+        var bar = await foodRepo.UpsertAsync(new FoodItem
+        {
+            Name = "Oat Bar",
+            ServingSizeG = 48,
+            CaloriesPer100G = 400,
+            ProteinPer100G = 10
+        });
+        var fiveBars = await diary.LogFoodItemAsync(
+            day,
+            foodSlots[2].Id,
+            bar,
+            grams: 240,
+            servingLabel: "5 × 48g (240g)",
+            unit: "g",
+            servings: 5);
+        Assert.Equal(240, fiveBars.QuantityGrams);
+        Assert.Equal(5, fiveBars.Servings);
+        Assert.Equal("5 × 48g (240g)", fiveBars.ServingLabel);
+        Assert.Equal(960, fiveBars.CaloriesKcal);
+        Assert.Equal(24, fiveBars.ProteinG);
+
         // USDA parser detects ml vs g from servingSizeUnit
         const string usdaJson = """
             {

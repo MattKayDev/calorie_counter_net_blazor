@@ -1,3 +1,4 @@
+@using System.Globalization
 @inject IFoodLookupService FoodLookup
 @inject IFoodLogRepository LogRepo
 @inject IMealRepository MealRepo
@@ -27,6 +28,9 @@
                 }
                 @if (_selectedFood is not null)
                 {
+                    var servings = ParsePositiveServings(_servingsText);
+                    var totalQty = Math.Round(_grams * servings, 1);
+
                     <div>
                         <button class="ct-btn ct-btn-outline ct-btn-sm" style="margin-bottom:10px;" @onclick="() => _selectedFood = null">
                             ← Back to results
@@ -39,7 +43,7 @@
                             }
                             <div style="margin-top:10px;" class="ct-grid-2">
                                 <div class="ct-field">
-                                    <label class="ct-label">Quantity (@_unit)</label>
+                                    <label class="ct-label">Serving size (@_unit)</label>
                                     <input class="ct-input" type="number" inputmode="decimal" step="1" min="1" @bind="_grams" @bind:event="oninput" />
                                 </div>
                                 <div class="ct-field">
@@ -88,8 +92,35 @@
                                 </div>
                             </div>
 
+                            <div class="ct-field" style="margin-top:2px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                    <label class="ct-label" style="margin:0;">Servings</label>
+                                    @if (servings > 0 && Math.Abs(servings - 1.0) >= 0.005)
+                                    {
+                                        <span class="ct-muted" style="font-size:0.76rem;">Total: @($"{totalQty:0.#}{_unit}")</span>
+                                    }
+                                </div>
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <button type="button"
+                                            class="ct-btn ct-btn-sm @(Math.Abs(servings - 1.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
+                                            style="min-width:46px; height:42px;"
+                                            @onclick="() => SetServings(1)">
+                                        1x
+                                    </button>
+                                    <button type="button"
+                                            class="ct-btn ct-btn-sm @(Math.Abs(servings - 2.0) < 0.005 ? "ct-btn-soft" : "ct-btn-outline")"
+                                            style="min-width:46px; height:42px;"
+                                            @onclick="() => SetServings(2)">
+                                        2x
+                                    </button>
+                                    <input class="ct-input" style="flex:1;" type="number" inputmode="decimal" step="0.5" min="0.1"
+                                           placeholder="Other (e.g. 5)"
+                                           value="@_servingsText" @oninput="OnServingsInput" @onchange="OnServingsInput" />
+                                </div>
+                            </div>
+
                             @{
-                                var preview = _selectedFood.NutrientsForGrams(_grams);
+                                var preview = _selectedFood.NutrientsForGrams(totalQty);
                             }
                             <div class="ct-macro-row" style="margin-top:10px;">
                                 <div class="ct-macro-pill">
@@ -114,8 +145,15 @@
                             </div>
                         </div>
 
-                        <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:12px;" @onclick="ConfirmLogFoodAsync">
-                            Add @($"{_grams:0.#}{_unit}") to @ActiveSlotName
+                        <button class="ct-btn ct-btn-primary" style="width:100%; margin-top:12px;" disabled="@(totalQty <= 0)" @onclick="ConfirmLogFoodAsync">
+                            @if (Math.Abs(servings - 1.0) < 0.005)
+                            {
+                                <span>Add @($"{totalQty:0.#}{_unit}") to @ActiveSlotName</span>
+                            }
+                            else
+                            {
+                                <span>Add @($"{servings:0.##} × {_grams:0.#}{_unit} ({totalQty:0.#}{_unit})") to @ActiveSlotName</span>
+                            }
                         </button>
                     </div>
                 }
@@ -252,6 +290,7 @@
     private List<SavedFoodPortion> _recentPortions = new();
     private double _grams = 100;
     private string _unit = "g";
+    private string _servingsText = "1";
     private bool _isSearching;
     private bool _isLookingUpBarcode;
     private string _loadingText = "Searching...";
@@ -277,6 +316,7 @@
             _recentPortions.Clear();
             _grams = 100;
             _unit = "g";
+            _servingsText = "1";
             _statusMessage = null;
             _searchQuery = string.Empty;
             _isLookingUpBarcode = false;
@@ -396,6 +436,7 @@
     private async Task SelectFoodAsync(FoodItem item)
     {
         _selectedFood = item;
+        _servingsText = "1";
         _recentPortions = await LogRepo.GetRecentPortionsForFoodAsync(item.Id, 4);
         if (_recentPortions.Count > 0)
         {
@@ -415,10 +456,36 @@
         _unit = FoodItem.NormalizeUnit(unit);
     }
 
+    private static double ParsePositiveServings(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return 0;
+        var normalized = text.Trim().Replace(',', '.');
+        return double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var val) && val > 0
+            ? val
+            : 0;
+    }
+
+    private void SetServings(double count)
+    {
+        _servingsText = count.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private void OnServingsInput(ChangeEventArgs e)
+    {
+        _servingsText = e.Value?.ToString() ?? string.Empty;
+    }
+
     private async Task ConfirmLogFoodAsync()
     {
-        if (_selectedFood is null || _grams <= 0 || _selectedSlotId == Guid.Empty) return;
-        await Diary.LogFoodItemAsync(Date, _selectedSlotId, _selectedFood, _grams, unit: _unit);
+        var servings = ParsePositiveServings(_servingsText);
+        var totalQty = Math.Round(_grams * servings, 1);
+        if (_selectedFood is null || totalQty <= 0 || _selectedSlotId == Guid.Empty) return;
+
+        string? servingLabel = Math.Abs(servings - 1.0) < 0.005
+            ? null
+            : $"{servings:0.##} × {_grams:0.#}{_unit} ({totalQty:0.#}{_unit})";
+
+        await Diary.LogFoodItemAsync(Date, _selectedSlotId, _selectedFood, totalQty, servingLabel: servingLabel, unit: _unit, servings: servings);
         await OnLogged.InvokeAsync();
         await Close();
     }
